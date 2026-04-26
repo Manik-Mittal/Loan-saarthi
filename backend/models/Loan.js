@@ -17,6 +17,10 @@ const loanSchema = new mongoose.Schema({
     income: String,
     loanAmount: String,
     duration: String,
+    status: {
+        type: String,
+        default: "In Review"
+    },
 }, { timestamps: true });
 
 module.exports = mongoose.model("Loan", loanSchema);

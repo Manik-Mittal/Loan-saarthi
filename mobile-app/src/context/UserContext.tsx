@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const UserContext = createContext<any>(null);
@@ -24,14 +24,16 @@ export const UserProvider = ({ children }: any) => {
     }, []);
     
     //  custom setUser (IMPORTANT)
-    const setUser = async (data: any) => {
+    const setUser = useCallback(async (data: any) => {
         setUserState(data);
         await AsyncStorage.setItem("user", JSON.stringify(data));
         console.log("USER SAVED:", data);
-    };
+    }, []);
+
+    const value = useMemo(() => ({ user, setUser, loading }), [user, setUser, loading]);
 
     return (
-        <UserContext.Provider value={{ user, setUser, loading }}>
+        <UserContext.Provider value={value}>
             {children}
         </UserContext.Provider>
     );

@@ -1,8 +1,12 @@
 import { MaterialIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useUser } from "../../src/context/UserContext";
+import { getLoansByUser } from "../../src/services/loanApi";
 
 const blueTheme = {
   primary: "#003087",
@@ -19,26 +23,27 @@ const blueTheme = {
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
-const applications = [
-  {
-    id: 1,
-    title: "Education Loan",
-    amount: "Rs. 8,50,000",
-    status: "In Review",
-    statusColor: blueTheme.warning,
-    updated: "Updated today",
-    progress: 68,
-  },
-  {
-    id: 2,
-    title: "Skill Course Loan",
-    amount: "Rs. 1,20,000",
-    status: "Approved",
-    statusColor: blueTheme.success,
-    updated: "Disbursal pending",
-    progress: 92,
-  },
-];
+function getStatusColor(status: string) {
+  const normalized = status?.toLowerCase();
+
+  if (normalized === "approved") {
+    return blueTheme.success;
+  }
+
+  return blueTheme.warning;
+}
+
+function formatDate(date?: string) {
+  if (!date) {
+    return "Recently updated";
+  }
+
+  return new Date(date).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 function SummaryTile({ label, value, icon, color }: any) {
   return (
@@ -76,6 +81,9 @@ function SummaryTile({ label, value, icon, color }: any) {
 }
 
 function ApplicationCard({ item }: any) {
+  const status = item.status || "In Review";
+  const statusColor = getStatusColor(status);
+
   return (
     <View
       style={{
@@ -90,16 +98,16 @@ function ApplicationCard({ item }: any) {
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
         <View style={{ flex: 1 }}>
           <Text style={{ color: blueTheme.text, fontSize: 16, fontWeight: "800" }}>
-            {item.title}
+            {item.course || "Education Loan"}
           </Text>
           <Text style={{ color: blueTheme.subText, fontSize: 13, marginTop: 4 }}>
-            {item.amount}
+            Rs. {item.loanAmount || "N/A"}
           </Text>
         </View>
 
         <View
           style={{
-            backgroundColor: `${item.statusColor}18`,
+            backgroundColor: `${statusColor}18`,
             borderRadius: 8,
             paddingHorizontal: 10,
             height: 30,
@@ -107,52 +115,161 @@ function ApplicationCard({ item }: any) {
             justifyContent: "center",
           }}
         >
-          <Text style={{ color: item.statusColor, fontSize: 12, fontWeight: "800" }}>
-            {item.status}
+          <Text style={{ color: statusColor, fontSize: 12, fontWeight: "800" }}>
+            {status}
           </Text>
         </View>
       </View>
 
-      <View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 14 }}>
+        <Text style={{ color: blueTheme.subText, fontSize: 12, fontWeight: "600" }}>
+          Submitted on {formatDate(item.createdAt)}
+        </Text>
+        <Text style={{ color: blueTheme.primary, fontSize: 12, fontWeight: "800", marginTop: 6 }}>
+          Duration: {item.duration || "N/A"} months
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function EmptyState({ onStart }: any) {
+  return (
+    <View
+      style={{
+        backgroundColor: blueTheme.white,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: blueTheme.border,
+        padding: 20,
+        alignItems: "center",
+      }}
+    >
+      <View
+        style={{
+          width: 54,
+          height: 54,
+          borderRadius: 14,
+          backgroundColor: blueTheme.paleBlue,
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 14,
+        }}
+      >
+        <MaterialIcons name="assignment" size={28} color={blueTheme.primary} />
+      </View>
+      <Text style={{ color: blueTheme.text, fontSize: 17, fontWeight: "800", textAlign: "center" }}>
+        No applications yet
+      </Text>
+      <Text style={{ color: blueTheme.subText, fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 6 }}>
+        Start a loan application and it will appear here after you submit it.
+      </Text>
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={onStart}
+        style={{
+          backgroundColor: blueTheme.primary,
+          borderRadius: 10,
+          paddingHorizontal: 18,
+          paddingVertical: 12,
+          marginTop: 16,
+        }}
+      >
+        <Text style={{ color: blueTheme.white, fontSize: 14, fontWeight: "800" }}>
+          Start Application
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function ErrorState({ message, onRetry }: any) {
+  return (
+    <View
+      style={{
+        backgroundColor: blueTheme.white,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: blueTheme.border,
+        padding: 18,
+      }}
+    >
+      <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
         <View
           style={{
-            height: 8,
-            borderRadius: 8,
-            backgroundColor: "#EEF2F7",
-            overflow: "hidden",
-          }}
-        >
-          <View
-            style={{
-              width: `${item.progress}%`,
-              height: "100%",
-              borderRadius: 8,
-              backgroundColor: blueTheme.skyBlue,
-            }}
-          />
-        </View>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
+            width: 42,
+            height: 42,
+            borderRadius: 10,
+            backgroundColor: "#FEF3C7",
             alignItems: "center",
-            marginTop: 10,
+            justifyContent: "center",
           }}
         >
-          <Text style={{ color: blueTheme.subText, fontSize: 12, fontWeight: "600" }}>
-            {item.updated}
+          <MaterialIcons name="error-outline" size={22} color={blueTheme.warning} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: blueTheme.text, fontSize: 15, fontWeight: "800" }}>
+            Could not load applications
           </Text>
-          <Text style={{ color: blueTheme.primary, fontSize: 12, fontWeight: "800" }}>
-            {item.progress}% complete
+          <Text style={{ color: blueTheme.subText, fontSize: 13, lineHeight: 18, marginTop: 3 }}>
+            {message}
           </Text>
         </View>
       </View>
+      <TouchableOpacity
+        activeOpacity={0.88}
+        onPress={onRetry}
+        style={{
+          alignSelf: "flex-start",
+          backgroundColor: blueTheme.primary,
+          borderRadius: 10,
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          marginTop: 14,
+        }}
+      >
+        <Text style={{ color: blueTheme.white, fontSize: 13, fontWeight: "800" }}>
+          Retry
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 export default function ApplyTab() {
   const router = useRouter();
+  const { user } = useUser();
+  const [applications, setApplications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadApplications = useCallback(async () => {
+    if (!user?._id) {
+      setApplications([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+      const res = await getLoansByUser(user._id);
+      setApplications(res.data?.loans || res.data || []);
+    } catch (err: any) {
+      setError(err?.response?.data?.error || err?.message || "Unable to load applications");
+    } finally {
+      setLoading(false);
+    }
+  }, [user?._id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadApplications();
+    }, [loadApplications])
+  );
+
+  const startApplication = () => router.push("/apply");
+  const approvedCount = applications.filter((item) => item.status === "Approved").length;
+  const pendingCount = applications.length - approvedCount;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: blueTheme.surface }}>
@@ -165,14 +282,14 @@ export default function ApplyTab() {
             Applications
           </Text>
           <Text style={{ color: blueTheme.subText, fontSize: 14, marginTop: 6, lineHeight: 20 }}>
-            Track your loan requests and start a new application when you are ready.
+            Track your submitted loan requests and start a new application when you are ready.
           </Text>
         </AnimatedView>
 
         <AnimatedView entering={ZoomIn.duration(600).delay(100)} style={{ marginBottom: 18 }}>
           <TouchableOpacity
             activeOpacity={0.88}
-            onPress={() => router.push("/apply")}
+            onPress={startApplication}
             style={{
               backgroundColor: blueTheme.primary,
               borderRadius: 12,
@@ -205,24 +322,29 @@ export default function ApplyTab() {
           </TouchableOpacity>
         </AnimatedView>
 
-        <AnimatedView entering={FadeInDown.duration(600).delay(180)} style={{ flexDirection: "row", gap: 12, marginBottom: 20 }}>
-          <SummaryTile label="Active" value="2" icon="assignment" color={blueTheme.primary} />
-          <SummaryTile label="Approved" value="1" icon="verified" color={blueTheme.success} />
-          <SummaryTile label="Pending" value="1" icon="schedule" color={blueTheme.warning} />
-        </AnimatedView>
+        {applications.length > 0 && (
+          <AnimatedView entering={FadeInDown.duration(600).delay(180)} style={{ flexDirection: "row", gap: 12, marginBottom: 20 }}>
+            <SummaryTile label="Total" value={applications.length} icon="assignment" color={blueTheme.primary} />
+            <SummaryTile label="Approved" value={approvedCount} icon="verified" color={blueTheme.success} />
+            <SummaryTile label="Pending" value={pendingCount} icon="schedule" color={blueTheme.warning} />
+          </AnimatedView>
+        )}
 
         <AnimatedView entering={FadeInDown.duration(600).delay(260)}>
-          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <Text style={{ fontSize: 18, fontWeight: "800", color: blueTheme.text }}>
-              Recent Applications
-            </Text>
-            <Text style={{ fontSize: 12, fontWeight: "800", color: blueTheme.skyBlue }}>
-              View All
-            </Text>
-          </View>
+          <Text style={{ fontSize: 18, fontWeight: "800", color: blueTheme.text, marginBottom: 12 }}>
+            Recent Applications
+          </Text>
 
-          {applications.map((item) => (
-            <ApplicationCard key={item.id} item={item} />
+          {loading && <ActivityIndicator size="large" color={blueTheme.skyBlue} style={{ marginTop: 20 }} />}
+
+          {!loading && error && <ErrorState message={error} onRetry={loadApplications} />}
+
+          {!loading && !error && applications.length === 0 && (
+            <EmptyState onStart={startApplication} />
+          )}
+
+          {!loading && applications.map((item) => (
+            <ApplicationCard key={item._id} item={item} />
           ))}
         </AnimatedView>
       </ScrollView>

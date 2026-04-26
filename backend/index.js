@@ -21,8 +21,10 @@ app.get("/", (req, res) => {
 // Routes
 const userRoutes = require("./routes/userRoutes");
 const loanRoutes = require("./routes/loanRoutes");
+const { getLoansByUser } = require("./controllers/loanController");
 
 app.use("/api/user", userRoutes);
+app.get("/api/loan", getLoansByUser);
 app.use("/api/loan", loanRoutes);
 
 // Server

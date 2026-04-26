@@ -7,9 +7,13 @@ const userSchema = new mongoose.Schema({
         unique: true
     },
     name: String,
+    dob: String,
     email: String,
     address: String,
     pincode: String,
+    pan: String,
+    gender: String,
+    marital: String,
 
     education: {
         class10: Number,
@@ -17,11 +21,15 @@ const userSchema = new mongoose.Schema({
         school: String,
         college: String,
         course: String,
-        year: String
+        year: String,
+        marks: String
     },
 
     financial: {
-        income: Number
+        income: Number,
+        loanAmount: String,
+        duration: String,
+        bank: String
     }
 
 }, { timestamps: true });

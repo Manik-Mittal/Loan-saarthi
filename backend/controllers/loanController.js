@@ -40,11 +40,28 @@ exports.createLoan = async (req, res) => {
             income: req.body.income,
             loanAmount: req.body.loanAmount,
             duration: req.body.duration,
+            status: "In Review",
         });
 
         await loan.save();
 
         res.json({ message: "Loan submitted", loan });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.getLoansByUser = async (req, res) => {
+    try {
+        const userId = req.params.userId || req.query.userId;
+
+        if (!userId) {
+            return res.status(400).json({ error: "Missing required field: userId" });
+        }
+
+        const loans = await Loan.find({ userId }).sort({ createdAt: -1 });
+
+        res.json({ loans });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
