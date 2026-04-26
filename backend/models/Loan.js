@@ -6,6 +6,8 @@ const loanSchema = new mongoose.Schema({
     name: String,
     phone: String,
     email: String,
+    address: String,
+    pincode: String,
 
     tenth: String,
     twelfth: String,

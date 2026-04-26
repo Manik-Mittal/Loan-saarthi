@@ -28,7 +28,7 @@ export default function Apply() {
             )}
 
             {step === 4 && (
-                <Step4 form={form} prev={prev} />
+                <Step4 form={form} setForm={setForm} prev={prev} />
             )}
 
         </View>

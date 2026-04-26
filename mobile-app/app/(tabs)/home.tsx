@@ -179,7 +179,6 @@ export default function Home() {
               style={{
                 width: "80%",
                 height: 10,
-                backgroundColor: `linear-gradient(90deg, ${blueTheme.primary}, ${blueTheme.skyBlue})`,
                 backgroundColor: blueTheme.skyBlue,
                 borderRadius: 10,
               }}
