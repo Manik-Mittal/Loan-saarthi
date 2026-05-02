@@ -1,5 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
@@ -7,15 +8,18 @@ import { useUser } from "../../src/context/UserContext";
 import { getProfile, updateProfile } from "../../src/services/userApi";
 
 const blueTheme = {
-  primary: "#003087",
-  skyBlue: "#0066CC",
-  surface: "#FAFBFC",
+  primary: "#0F4C81",
+  skyBlue: "#2563EB",
+  surface: "#F5F7FA",
   white: "#FFFFFF",
-  text: "#1F2937",
-  subText: "#6B7280",
-  border: "#E5E7EB",
-  lightGray: "#F3F4F6",
-  paleBlue: "#E8F2FF",
+  text: "#101828",
+  subText: "#667085",
+  border: "#EAECF0",
+  lightGray: "#F2F4F7",
+  paleBlue: "#EAF2FF",
+  ink: "#0B1220",
+  mint: "#0E9384",
+  amber: "#B54708",
 };
 
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -102,13 +106,13 @@ function Row({ label, value, onChangeText, keyboardType = "default", multiline =
   return (
     <View
       style={{
-        paddingVertical: 12,
+        paddingVertical: 14,
         paddingHorizontal: 16,
-        borderBottomWidth: 0.5,
+        borderBottomWidth: 1,
         borderBottomColor: blueTheme.border,
       }}
     >
-      <Text style={{ color: blueTheme.subText, fontSize: 12, fontWeight: "700", marginBottom: 6 }}>
+      <Text style={{ color: blueTheme.subText, fontSize: 12, fontWeight: "700", marginBottom: 7 }}>
         {label}
       </Text>
       <TextInput
@@ -122,7 +126,7 @@ function Row({ label, value, onChangeText, keyboardType = "default", multiline =
           color: blueTheme.text,
           fontSize: 15,
           fontWeight: "600",
-          minHeight: multiline ? 58 : 28,
+          minHeight: multiline ? 64 : 30,
           paddingVertical: 0,
           textAlignVertical: multiline ? "top" : "center",
         }}
@@ -137,9 +141,9 @@ function SelectRow({ label, value, onPress }: any) {
       activeOpacity={0.82}
       onPress={onPress}
       style={{
-        paddingVertical: 12,
+        paddingVertical: 14,
         paddingHorizontal: 16,
-        borderBottomWidth: 0.5,
+        borderBottomWidth: 1,
         borderBottomColor: blueTheme.border,
       }}
     >
@@ -162,9 +166,9 @@ function DateRow({ label, value, onPress }: any) {
       activeOpacity={0.82}
       onPress={onPress}
       style={{
-        paddingVertical: 12,
+        paddingVertical: 14,
         paddingHorizontal: 16,
-        borderBottomWidth: 0.5,
+        borderBottomWidth: 1,
         borderBottomColor: blueTheme.border,
       }}
     >
@@ -243,10 +247,24 @@ function SelectModal({ visible, title, options, value, onSelect, onClose }: any)
 }
 
 function CalendarModal({ visible, value, onSelect, onClose }: any) {
-  const initialDate = value ? new Date(value) : new Date(2003, 0, 1);
+  const formatLocalDate = (date: Date) => {
+    const dateYear = date.getFullYear();
+    const dateMonth = String(date.getMonth() + 1).padStart(2, "0");
+    const dateDay = String(date.getDate()).padStart(2, "0");
+    return `${dateYear}-${dateMonth}-${dateDay}`;
+  };
+
+  const initialDate = value ? new Date(value) : new Date();
   const [monthDate, setMonthDate] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
+  const [picker, setPicker] = useState<"month" | "year" | null>(null);
   const year = monthDate.getFullYear();
   const month = monthDate.getMonth();
+  const monthOptions = Array.from({ length: 12 }, (_, index) => ({
+    label: new Date(2000, index, 1).toLocaleDateString("en-IN", { month: "long" }),
+    value: index,
+  }));
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: currentYear - 1942 + 1 }, (_, index) => currentYear - index);
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days = [
@@ -259,9 +277,19 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
     setMonthDate(new Date(year, month + step, 1));
   };
 
+  const changeMonth = (nextMonth: number) => {
+    setMonthDate(new Date(year, nextMonth, 1));
+    setPicker(null);
+  };
+
+  const changeYear = (nextYear: number) => {
+    setMonthDate(new Date(nextYear, month, 1));
+    setPicker(null);
+  };
+
   const selectDay = (day: string) => {
     const selected = new Date(year, month, Number(day));
-    const formatted = selected.toISOString().slice(0, 10);
+    const formatted = formatLocalDate(selected);
     onSelect(formatted);
   };
 
@@ -280,7 +308,26 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
             <TouchableOpacity onPress={() => moveMonth(-1)} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}>
               <MaterialIcons name="chevron-left" size={26} color={blueTheme.primary} />
             </TouchableOpacity>
-            <Text style={{ color: blueTheme.text, fontSize: 16, fontWeight: "800" }}>{monthLabel}</Text>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity
+                activeOpacity={0.84}
+                onPress={() => setPicker("month")}
+                style={{ backgroundColor: blueTheme.paleBlue, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}
+              >
+                <Text style={{ color: blueTheme.primary, fontSize: 14, fontWeight: "800" }}>
+                  {monthLabel.split(" ")[0]}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.84}
+                onPress={() => setPicker("year")}
+                style={{ backgroundColor: blueTheme.lightGray, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}
+              >
+                <Text style={{ color: blueTheme.text, fontSize: 14, fontWeight: "800" }}>
+                  {year}
+                </Text>
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity onPress={() => moveMonth(1)} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}>
               <MaterialIcons name="chevron-right" size={26} color={blueTheme.primary} />
             </TouchableOpacity>
@@ -293,7 +340,7 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
               </Text>
             ))}
             {days.map((day, index) => {
-              const dateValue = day ? new Date(year, month, Number(day)).toISOString().slice(0, 10) : "";
+              const dateValue = day ? formatLocalDate(new Date(year, month, Number(day))) : "";
               const selected = dateValue === value;
 
               return (
@@ -330,6 +377,64 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
             })}
           </View>
         </View>
+
+        <Modal transparent visible={!!picker} animationType="fade" onRequestClose={() => setPicker(null)}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setPicker(null)}
+            style={{ flex: 1, backgroundColor: "rgba(15, 23, 42, 0.18)", justifyContent: "flex-end" }}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              style={{
+                backgroundColor: blueTheme.white,
+                borderTopLeftRadius: 18,
+                borderTopRightRadius: 18,
+                padding: 16,
+                maxHeight: picker === "year" ? 420 : undefined,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <Text style={{ color: blueTheme.text, fontSize: 18, fontWeight: "800" }}>
+                  Select {picker === "month" ? "Month" : "Year"}
+                </Text>
+                <TouchableOpacity onPress={() => setPicker(null)} style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center" }}>
+                  <MaterialIcons name="close" size={22} color={blueTheme.subText} />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {(picker === "month" ? monthOptions : yearOptions).map((option: any) => {
+                  const optionLabel = picker === "month" ? option.label : String(option);
+                  const selected = picker === "month" ? option.value === month : option === year;
+
+                  return (
+                    <TouchableOpacity
+                      key={optionLabel}
+                      activeOpacity={0.82}
+                      onPress={() => (picker === "month" ? changeMonth(option.value) : changeYear(option))}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        paddingVertical: 13,
+                        paddingHorizontal: 12,
+                        borderRadius: 10,
+                        backgroundColor: selected ? blueTheme.paleBlue : blueTheme.white,
+                        marginBottom: 4,
+                      }}
+                    >
+                      <Text style={{ color: selected ? blueTheme.primary : blueTheme.text, fontSize: 15, fontWeight: "700" }}>
+                        {optionLabel}
+                      </Text>
+                      {selected && <MaterialIcons name="check" size={20} color={blueTheme.primary} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
       </View>
     </Modal>
   );
@@ -341,11 +446,16 @@ function SectionCard({ title, icon, children, delay }: any) {
       entering={FadeInDown.duration(600).delay(delay)}
       style={{
         backgroundColor: blueTheme.white,
-        borderRadius: 12,
-        marginBottom: 14,
+        borderRadius: 10,
+        marginBottom: 16,
         overflow: "hidden",
         borderWidth: 1,
         borderColor: blueTheme.border,
+        shadowColor: "#101828",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
       }}
     >
       <View
@@ -353,13 +463,24 @@ function SectionCard({ title, icon, children, delay }: any) {
           flexDirection: "row",
           alignItems: "center",
           paddingHorizontal: 16,
-          paddingVertical: 14,
+          paddingVertical: 15,
           borderBottomWidth: 1,
           borderBottomColor: blueTheme.border,
         }}
       >
-        <MaterialIcons name={icon} size={20} color={blueTheme.primary} />
-        <Text style={{ fontSize: 14, fontWeight: "800", color: blueTheme.text, marginLeft: 10 }}>
+        <View
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            backgroundColor: blueTheme.paleBlue,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <MaterialIcons name={icon} size={18} color={blueTheme.primary} />
+        </View>
+        <Text style={{ fontSize: 15, fontWeight: "800", color: blueTheme.text, marginLeft: 10 }}>
           {title}
         </Text>
       </View>
@@ -369,7 +490,8 @@ function SectionCard({ title, icon, children, delay }: any) {
 }
 
 export default function Profile() {
-  const { user, setUser } = useUser();
+  const router = useRouter();
+  const { user, setUser, logout } = useUser();
   const userId = user?._id;
   const userPhone = user?.phone;
   const [data, setData] = useState<any>(normalizeProfile(user));
@@ -462,76 +584,158 @@ export default function Profile() {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/login");
+  };
+
   const initials = (data.name || data.phone || "U").trim().charAt(0).toUpperCase();
+  const requiredFields = [
+    data.name,
+    data.dob,
+    data.phone,
+    data.email,
+    data.address,
+    data.pincode,
+    data.education.course,
+    data.education.year,
+    data.financial.income,
+    data.financial.loanAmount,
+    data.pan,
+  ];
+  const completion = Math.round((requiredFields.filter(Boolean).length / requiredFields.length) * 100);
 
   return (
     <View style={{ flex: 1, backgroundColor: blueTheme.surface }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingVertical: 16, paddingBottom: 96 }}
+        contentContainerStyle={{ paddingBottom: 96 }}
         showsVerticalScrollIndicator={false}
       >
-        <AnimatedView entering={FadeInDown.duration(600)} style={{ paddingHorizontal: 16, marginBottom: 20 }}>
-        <Text style={{ fontSize: 26, fontWeight: "800", color: blueTheme.text, marginBottom: 4 }}>
-          My Profile
-        </Text>
-        <Text style={{ fontSize: 13, color: blueTheme.subText }}>
-          Manage the information used for loan applications
-        </Text>
-      </AnimatedView>
-
-      <AnimatedView entering={ZoomIn.duration(600).delay(100)} style={{ paddingHorizontal: 16, marginBottom: 18 }}>
-        <View
-          style={{
-            backgroundColor: blueTheme.white,
-            borderRadius: 14,
-            padding: 20,
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: blueTheme.border,
-          }}
-        >
-          <View
+        <View style={{ backgroundColor: blueTheme.ink, paddingTop: 18, paddingHorizontal: 16, paddingBottom: 72 }}>
+          <AnimatedView
+            entering={FadeInDown.duration(600)}
             style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
-              backgroundColor: blueTheme.primary,
-              justifyContent: "center",
-              alignItems: "center",
-              marginBottom: 12,
-            }}
-          >
-            <Text style={{ fontSize: 32, color: blueTheme.white, fontWeight: "800" }}>{initials}</Text>
-          </View>
-
-          <Text style={{ fontSize: 18, fontWeight: "800", color: blueTheme.text, marginBottom: 2 }}>
-            {data.name || "Add your name"}
-          </Text>
-          <Text style={{ fontSize: 12, color: blueTheme.subText, marginBottom: 14 }}>
-            {data.education.course || "Course not added"} • {data.education.year || "Year not added"}
-          </Text>
-
-          <TouchableOpacity
-            onPress={loadProfile}
-            activeOpacity={0.85}
-            style={{
-              backgroundColor: blueTheme.lightGray,
               flexDirection: "row",
               alignItems: "center",
-              paddingHorizontal: 16,
-              paddingVertical: 10,
-              borderRadius: 8,
-              gap: 8,
+              justifyContent: "space-between",
             }}
           >
-            <MaterialIcons name="refresh" size={16} color={blueTheme.primary} />
-            <Text style={{ color: blueTheme.primary, fontWeight: "700", fontSize: 13 }}>
-              Refresh Profile
-            </Text>
-          </TouchableOpacity>
+            <View>
+              <Text style={{ color: "#98A2B3", fontSize: 12, fontWeight: "800", letterSpacing: 0 }}>
+                ACCOUNT
+              </Text>
+              <Text style={{ fontSize: 26, fontWeight: "900", color: blueTheme.white, marginTop: 3 }}>
+                Profile
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={handleLogout}
+              activeOpacity={0.86}
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 10,
+                backgroundColor: "rgba(255,255,255,0.08)",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.12)",
+              }}
+            >
+              <MaterialIcons name="logout" size={20} color={blueTheme.white} />
+            </TouchableOpacity>
+          </AnimatedView>
         </View>
-      </AnimatedView>
+
+        <AnimatedView entering={ZoomIn.duration(600).delay(100)} style={{ paddingHorizontal: 16, marginTop: -52, marginBottom: 18 }}>
+          <View
+            style={{
+              backgroundColor: blueTheme.white,
+              borderRadius: 10,
+              padding: 18,
+              borderWidth: 1,
+              borderColor: blueTheme.border,
+              shadowColor: "#101828",
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.08,
+              shadowRadius: 16,
+              elevation: 4,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 18 }}>
+              <View
+                style={{
+                  width: 62,
+                  height: 62,
+                  borderRadius: 14,
+                  backgroundColor: blueTheme.primary,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginRight: 14,
+                }}
+              >
+                <Text style={{ fontSize: 25, color: blueTheme.white, fontWeight: "900" }}>{initials}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 18, fontWeight: "900", color: blueTheme.text, marginBottom: 3 }}>
+                  {data.name || "Complete your profile"}
+                </Text>
+                <Text style={{ fontSize: 13, color: blueTheme.subText, fontWeight: "600" }}>
+                  {data.phone || "Phone not added"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={loadProfile}
+                activeOpacity={0.85}
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 10,
+                  backgroundColor: blueTheme.lightGray,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <MaterialIcons name="refresh" size={20} color={blueTheme.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ marginBottom: 16 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <Text style={{ color: blueTheme.text, fontSize: 13, fontWeight: "800" }}>Loan readiness</Text>
+                <Text style={{ color: completion >= 80 ? blueTheme.mint : blueTheme.amber, fontSize: 13, fontWeight: "900" }}>
+                  {completion}%
+                </Text>
+              </View>
+              <View style={{ height: 8, borderRadius: 4, backgroundColor: blueTheme.lightGray, overflow: "hidden" }}>
+                <View
+                  style={{
+                    width: `${completion}%`,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: completion >= 80 ? blueTheme.mint : blueTheme.primary,
+                  }}
+                />
+              </View>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 8, padding: 12, borderWidth: 1, borderColor: blueTheme.border }}>
+                <Text style={{ color: blueTheme.subText, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>COURSE</Text>
+                <Text numberOfLines={1} style={{ color: blueTheme.text, fontSize: 14, fontWeight: "900" }}>
+                  {data.education.course || "Pending"}
+                </Text>
+              </View>
+              <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 8, padding: 12, borderWidth: 1, borderColor: blueTheme.border }}>
+                <Text style={{ color: blueTheme.subText, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>LOAN NEED</Text>
+                <Text numberOfLines={1} style={{ color: blueTheme.text, fontSize: 14, fontWeight: "900" }}>
+                  {data.financial.loanAmount ? `₹${data.financial.loanAmount}` : "Pending"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </AnimatedView>
 
       {loading && <ActivityIndicator size="large" color={blueTheme.skyBlue} style={{ marginBottom: 14 }} />}
       {!!error && (
@@ -612,6 +816,27 @@ export default function Profile() {
           >
             <Text style={{ color: saving || !hasChanges ? "#64748B" : blueTheme.white, fontWeight: "800", fontSize: 15 }}>
               {saving ? "SAVING..." : hasChanges ? "SAVE CHANGES" : "NO CHANGES"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={handleLogout}
+            activeOpacity={0.88}
+            style={{
+              backgroundColor: blueTheme.white,
+              borderWidth: 1,
+              borderColor: "#FCA5A5",
+              paddingVertical: 14,
+              borderRadius: 10,
+              alignItems: "center",
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
+            <MaterialIcons name="logout" size={18} color="#DC2626" />
+            <Text style={{ color: "#DC2626", fontWeight: "800", fontSize: 15 }}>
+              LOGOUT
             </Text>
           </TouchableOpacity>
         </AnimatedView>

@@ -30,7 +30,12 @@ export const UserProvider = ({ children }: any) => {
         console.log("USER SAVED:", data);
     }, []);
 
-    const value = useMemo(() => ({ user, setUser, loading }), [user, setUser, loading]);
+    const logout = useCallback(async () => {
+        setUserState(null);
+        await AsyncStorage.removeItem("user");
+    }, []);
+
+    const value = useMemo(() => ({ user, setUser, logout, loading }), [user, setUser, logout, loading]);
 
     return (
         <UserContext.Provider value={value}>

@@ -1,46 +1,44 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
-import { MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useUser } from '../../src/context/UserContext';
 
-// Modern Blue Theme
 const blueTheme = {
-  primary: "#003087",
-  lightBlue: "#0051BA",
-  darkBlue: "#001F54",
-  skyBlue: "#0066CC",
-  lightSkyBlue: "#E3F2FD",
-  accentBlue: "#1E88E5",
-  surface: "#F8FBFF",
+  primary: "#2F6FED",
+  skyBlue: "#6EA4FF",
+  surface: "#F7FAFD",
   white: "#FFFFFF",
-  text: "#1F2937",
-  subText: "#6B7280",
-  border: "#D1D5DB",
-  inactive: "#BFDBFE",
+  text: "#172033",
+  subText: "#758195",
+  border: "#E8EEF5",
+  inactive: "#AAB6C7",
 };
 
 // Custom Tab Bar Component
 function CustomTabBar({ state, descriptors, navigation }: any) {
-  const icons = [
-    { name: 'home', type: 'MaterialIcons' },
-    { name: 'task-alt', type: 'MaterialIcons' },
-    { name: 'account-circle', type: 'MaterialIcons' },
+  const tabs = [
+    { routeName: 'home', icon: 'home' },
+    { routeName: 'applications', icon: 'task-alt' },
+    { routeName: 'profile', icon: 'account-circle' },
   ];
 
-  // Show only first 3 tabs (index, applications, profile) - hide apply
-  const visibleRoutes = state.routes.slice(0, 3);
+  const visibleRoutes = tabs
+    .map((tab) => {
+      const route = state.routes.find((item: any) => item.name === tab.routeName);
+      return route ? { ...route, icon: tab.icon } : null;
+    })
+    .filter(Boolean);
 
   return (
     <View style={styles.tabBarContainer}>
       <View style={styles.tabBarContent}>
         {visibleRoutes.map((route: any, index: number) => {
           const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
+          const isFocused = state.routes[state.index]?.key === route.key;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -69,26 +67,20 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
               style={styles.tabButton}
               activeOpacity={0.8}
             >
-              <View style={[styles.iconContainer, isFocused && styles.iconContainerActive]}>
-                <MaterialIcons
-                  name={icons[index]?.name}
-                  size={26}
-                  color={isFocused ? '#FFFFFF' : blueTheme.subText}
-                />
+              <View style={styles.iconContainer}>
+                <MaterialIcons name={route.icon} size={26} color={isFocused ? blueTheme.primary : blueTheme.inactive} />
               </View>
               <Text
                 style={[
                   styles.tabLabel,
                   {
-                    color: isFocused ? blueTheme.primary : blueTheme.subText,
+                    color: isFocused ? blueTheme.text : blueTheme.subText,
                     fontWeight: isFocused ? '800' : '600',
-                    fontSize: isFocused ? 12 : 11,
                   },
                 ]}
               >
                 {options.title}
               </Text>
-              {isFocused && <View style={styles.activeDot} />}
             </TouchableOpacity>
           );
         })}
@@ -98,7 +90,19 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { user, loading } = useUser();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: blueTheme.surface }}>
+        <Text style={{ color: blueTheme.subText, fontSize: 14, fontWeight: '700' }}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return <Redirect href="/login" />;
+  }
 
   return (
     <Tabs
@@ -114,10 +118,16 @@ export default function TabLayout() {
       tabBar={(props) => <CustomTabBar {...props} />}
     >
       <Tabs.Screen
-        name="index"
+        name="home"
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -148,61 +158,47 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBarContainer: {
-    backgroundColor: blueTheme.white,
-    borderTopWidth: 1,
-    borderTopColor: blueTheme.border,
-    shadowColor: blueTheme.primary,
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 8,
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: 10,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderWidth: 1,
+    borderColor: blueTheme.border,
+    shadowColor: '#8AA4C2',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 20,
+    elevation: 10,
   },
   tabBarContent: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingBottom: 6,
-    paddingTop: 4,
-    backgroundColor: blueTheme.white,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
   tabButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginHorizontal: 6,
+    paddingVertical: 6,
+    borderRadius: 18,
+    marginHorizontal: 3,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 38,
+    height: 34,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F0F0F0',
-    marginBottom: 4,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  iconContainerActive: {
-    backgroundColor: blueTheme.skyBlue,
-    borderColor: blueTheme.primary,
-    shadowColor: blueTheme.skyBlue,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    backgroundColor: 'transparent',
+    marginBottom: 3,
   },
   tabLabel: {
     fontSize: 10,
     fontWeight: '600',
-    marginTop: 2,
-  },
-  activeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: blueTheme.primary,
-    marginTop: 3,
+    marginTop: 1,
   },
 });

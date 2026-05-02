@@ -4,7 +4,6 @@ import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useUser } from "../../src/context/UserContext";
 import { getLoansByUser } from "../../src/services/loanApi";
 
@@ -272,7 +271,7 @@ export default function ApplyTab() {
   const pendingCount = applications.length - approvedCount;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: blueTheme.surface }}>
+    <View style={{ flex: 1, backgroundColor: blueTheme.surface }}>
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
@@ -348,6 +347,6 @@ export default function ApplyTab() {
           ))}
         </AnimatedView>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
