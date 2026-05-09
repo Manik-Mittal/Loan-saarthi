@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
     name: String,
     dob: String,
     email: String,
-    address: String,
+    address: mongoose.Schema.Types.Mixed,
     pincode: String,
     pan: String,
     gender: String,

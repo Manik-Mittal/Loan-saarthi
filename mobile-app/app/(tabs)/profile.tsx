@@ -36,8 +36,14 @@ const emptyProfile = {
   dob: "",
   phone: "",
   email: "",
-  address: "",
-  pincode: "",
+  address: {
+    line1: "",
+    line2: "",
+    city: "",
+    state: "",
+    pincode: "",
+    country: "India",
+  },
   pan: "",
   gender: "",
   marital: "",
@@ -58,9 +64,18 @@ const emptyProfile = {
 };
 
 function mergeProfile(user: any) {
+  const address = typeof user?.address === "string"
+    ? { ...emptyProfile.address, line1: user.address, pincode: user?.pincode || "" }
+    : {
+      ...emptyProfile.address,
+      ...(user?.address || {}),
+      pincode: user?.address?.pincode || user?.pincode || "",
+    };
+
   return {
     ...emptyProfile,
     ...user,
+    address,
     education: {
       ...emptyProfile.education,
       ...(user?.education || {}),
@@ -80,8 +95,14 @@ function normalizeProfile(profile: any) {
     dob: String(merged.dob || ""),
     phone: String(merged.phone || ""),
     email: String(merged.email || ""),
-    address: String(merged.address || ""),
-    pincode: String(merged.pincode || ""),
+    address: {
+      line1: String(merged.address.line1 || ""),
+      line2: String(merged.address.line2 || ""),
+      city: String(merged.address.city || ""),
+      state: String(merged.address.state || ""),
+      pincode: String(merged.address.pincode || ""),
+      country: String(merged.address.country || "India"),
+    },
     pan: String(merged.pan || ""),
     gender: String(merged.gender || ""),
     marital: String(merged.marital || ""),
@@ -539,6 +560,16 @@ export default function Profile() {
     setData((prev: any) => ({ ...prev, [field]: value }));
   };
 
+  const updateAddressField = (field: string, value: string) => {
+    setData((prev: any) => ({
+      ...prev,
+      address: {
+        ...prev.address,
+        [field]: value,
+      },
+    }));
+  };
+
   const updateNestedField = (section: "education" | "financial", field: string, value: string) => {
     setData((prev: any) => ({
       ...prev,
@@ -595,8 +626,10 @@ export default function Profile() {
     data.dob,
     data.phone,
     data.email,
-    data.address,
-    data.pincode,
+    data.address.line1,
+    data.address.city,
+    data.address.state,
+    data.address.pincode,
     data.education.course,
     data.education.year,
     data.financial.income,
@@ -737,110 +770,131 @@ export default function Profile() {
           </View>
         </AnimatedView>
 
-      {loading && <ActivityIndicator size="large" color={blueTheme.skyBlue} style={{ marginBottom: 14 }} />}
-      {!!error && (
-        <Text style={{ color: "#B45309", fontSize: 13, fontWeight: "700", paddingHorizontal: 16, marginBottom: 14 }}>
-          {error}
-        </Text>
-      )}
+        {loading && <ActivityIndicator size="large" color={blueTheme.skyBlue} style={{ marginBottom: 14 }} />}
+        {!!error && (
+          <Text style={{ color: "#B45309", fontSize: 13, fontWeight: "700", paddingHorizontal: 16, marginBottom: 14 }}>
+            {error}
+          </Text>
+        )}
 
-      <View style={{ paddingHorizontal: 16 }}>
-        <SectionCard title="Personal Information" icon="person" delay={200}>
-          <Row label="Full Name" value={data.name} onChangeText={(val: string) => updateField("name", val)} />
-          <DateRow label="Date of Birth" value={data.dob} onPress={() => setDatePickerOpen(true)} />
-          <Row label="Phone Number" value={data.phone} keyboardType="phone-pad" onChangeText={(val: string) => updateField("phone", val)} />
-          <Row label="Email Address" value={data.email} keyboardType="email-address" onChangeText={(val: string) => updateField("email", val)} />
-          <Row label="Address" value={data.address} multiline onChangeText={(val: string) => updateField("address", val)} />
-          <Row label="Pincode" value={data.pincode} keyboardType="numeric" onChangeText={(val: string) => updateField("pincode", val)} />
-        </SectionCard>
+        <View style={{ paddingHorizontal: 16 }}>
+          <SectionCard title="Personal Information" icon="person" delay={200}>
+            <Row label="Full Name" value={data.name} onChangeText={(val: string) => updateField("name", val)} />
+            <DateRow label="Date of Birth" value={data.dob} onPress={() => setDatePickerOpen(true)} />
+            <Row label="Phone Number" value={data.phone} keyboardType="phone-pad" onChangeText={(val: string) => updateField("phone", val)} />
+            <Row label="Email Address" value={data.email} keyboardType="email-address" onChangeText={(val: string) => updateField("email", val)} />
 
-        <SectionCard title="Education Details" icon="school" delay={300}>
-          <Row label="10th Marks" value={String(data.education.class10 || "")} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("education", "class10", val)} />
-          <Row label="12th Marks" value={String(data.education.class12 || "")} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("education", "class12", val)} />
-          <SelectRow
-            label="Course"
-            value={data.education.course}
-            onPress={() => openSelect("Course", data.education.course, courseOptions, (val) => updateNestedField("education", "course", val))}
-          />
-          <Row label="College/University" value={data.education.college} onChangeText={(val: string) => updateNestedField("education", "college", val)} />
-          <SelectRow
-            label="Current Year"
-            value={data.education.year}
-            onPress={() => openSelect("Current Year", data.education.year, yearOptions, (val) => updateNestedField("education", "year", val))}
-          />
-          <Row label="Current Marks (%)" value={data.education.marks} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("education", "marks", val)} />
-        </SectionCard>
+            <View style={{ borderBottomWidth: 1, borderBottomColor: blueTheme.border }}>
+              <Row label="Address Line 1" value={data.address.line1} onChangeText={(val: string) => updateAddressField("line1", val)} />
+            </View>
+            <View style={{ borderBottomWidth: 1, borderBottomColor: blueTheme.border }}>
+              <Row label="Address Line 2 (Optional)" value={data.address.line2} onChangeText={(val: string) => updateAddressField("line2", val)} />
+            </View>
+            <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: blueTheme.border }}>
+              <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: blueTheme.border }}>
+                <Row label="City" value={data.address.city} onChangeText={(val: string) => updateAddressField("city", val)} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Row label="State" value={data.address.state} onChangeText={(val: string) => updateAddressField("state", val)} />
+              </View>
+            </View>
+            <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: blueTheme.border }}>
+              <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: blueTheme.border }}>
+                <Row label="Pincode" value={data.address.pincode} keyboardType="numeric" onChangeText={(val: string) => updateAddressField("pincode", val)} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Row label="Country" value={data.address.country} onChangeText={(val: string) => updateAddressField("country", val)} />
+              </View>
+            </View>
+          </SectionCard>
 
-        <SectionCard title="Loan Preferences" icon="account-balance-wallet" delay={400}>
-          <Row label="Annual Income" value={String(data.financial.income || "")} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("financial", "income", val)} />
-          <Row label="Loan Amount" value={data.financial.loanAmount} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("financial", "loanAmount", val)} />
-          <SelectRow
-            label="Preferred Duration"
-            value={data.financial.duration}
-            onPress={() => openSelect("Preferred Duration", data.financial.duration, durationOptions, (val) => updateNestedField("financial", "duration", val))}
-          />
-          <SelectRow
-            label="Preferred Bank"
-            value={data.financial.bank}
-            onPress={() => openSelect("Preferred Bank", data.financial.bank, bankOptions, (val) => updateNestedField("financial", "bank", val))}
-          />
-        </SectionCard>
+          <SectionCard title="Education Details" icon="school" delay={300}>
+            <Row label="10th Marks" value={String(data.education.class10 || "")} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("education", "class10", val)} />
+            <Row label="12th Marks" value={String(data.education.class12 || "")} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("education", "class12", val)} />
+            <SelectRow
+              label="Course"
+              value={data.education.course}
+              onPress={() => openSelect("Course", data.education.course, courseOptions, (val) => updateNestedField("education", "course", val))}
+            />
+            <Row label="College/University" value={data.education.college} onChangeText={(val: string) => updateNestedField("education", "college", val)} />
+            <SelectRow
+              label="Current Year"
+              value={data.education.year}
+              onPress={() => openSelect("Current Year", data.education.year, yearOptions, (val) => updateNestedField("education", "year", val))}
+            />
+            <Row label="Current Marks (%)" value={data.education.marks} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("education", "marks", val)} />
+          </SectionCard>
 
-        <SectionCard title="Identity Information" icon="verified-user" delay={500}>
-          <Row label="PAN Number" value={data.pan} onChangeText={(val: string) => updateField("pan", val)} />
-          <SelectRow
-            label="Gender"
-            value={data.gender}
-            onPress={() => openSelect("Gender", data.gender, genderOptions, (val) => updateField("gender", val))}
-          />
-          <SelectRow
-            label="Marital Status"
-            value={data.marital}
-            onPress={() => openSelect("Marital Status", data.marital, maritalOptions, (val) => updateField("marital", val))}
-          />
-        </SectionCard>
+          <SectionCard title="Loan Preferences" icon="account-balance-wallet" delay={400}>
+            <Row label="Annual Income" value={String(data.financial.income || "")} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("financial", "income", val)} />
+            <Row label="Loan Amount" value={data.financial.loanAmount} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("financial", "loanAmount", val)} />
+            <SelectRow
+              label="Preferred Duration"
+              value={data.financial.duration}
+              onPress={() => openSelect("Preferred Duration", data.financial.duration, durationOptions, (val) => updateNestedField("financial", "duration", val))}
+            />
+            <SelectRow
+              label="Preferred Bank"
+              value={data.financial.bank}
+              onPress={() => openSelect("Preferred Bank", data.financial.bank, bankOptions, (val) => updateNestedField("financial", "bank", val))}
+            />
+          </SectionCard>
 
-        <AnimatedView entering={FadeInDown.duration(600).delay(600)}>
-          <TouchableOpacity
-            onPress={handleSave}
-            disabled={saving || !hasChanges}
-            activeOpacity={0.88}
-            style={{
-              backgroundColor: saving || !hasChanges ? "#CBD5E1" : blueTheme.primary,
-              paddingVertical: 14,
-              borderRadius: 10,
-              alignItems: "center",
-              marginBottom: 10,
-              opacity: saving || !hasChanges ? 0.8 : 1,
-            }}
-          >
-            <Text style={{ color: saving || !hasChanges ? "#64748B" : blueTheme.white, fontWeight: "800", fontSize: 15 }}>
-              {saving ? "SAVING..." : hasChanges ? "SAVE CHANGES" : "NO CHANGES"}
-            </Text>
-          </TouchableOpacity>
+          <SectionCard title="Identity Information" icon="verified-user" delay={500}>
+            <Row label="PAN Number" value={data.pan} onChangeText={(val: string) => updateField("pan", val)} />
+            <SelectRow
+              label="Gender"
+              value={data.gender}
+              onPress={() => openSelect("Gender", data.gender, genderOptions, (val) => updateField("gender", val))}
+            />
+            <SelectRow
+              label="Marital Status"
+              value={data.marital}
+              onPress={() => openSelect("Marital Status", data.marital, maritalOptions, (val) => updateField("marital", val))}
+            />
+          </SectionCard>
 
-          <TouchableOpacity
-            onPress={handleLogout}
-            activeOpacity={0.88}
-            style={{
-              backgroundColor: blueTheme.white,
-              borderWidth: 1,
-              borderColor: "#FCA5A5",
-              paddingVertical: 14,
-              borderRadius: 10,
-              alignItems: "center",
-              flexDirection: "row",
-              justifyContent: "center",
-              gap: 8,
-            }}
-          >
-            <MaterialIcons name="logout" size={18} color="#DC2626" />
-            <Text style={{ color: "#DC2626", fontWeight: "800", fontSize: 15 }}>
-              LOGOUT
-            </Text>
-          </TouchableOpacity>
-        </AnimatedView>
-      </View>
+          <AnimatedView entering={FadeInDown.duration(600).delay(600)}>
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={saving || !hasChanges}
+              activeOpacity={0.88}
+              style={{
+                backgroundColor: saving || !hasChanges ? "#CBD5E1" : blueTheme.primary,
+                paddingVertical: 14,
+                borderRadius: 10,
+                alignItems: "center",
+                marginBottom: 10,
+                opacity: saving || !hasChanges ? 0.8 : 1,
+              }}
+            >
+              <Text style={{ color: saving || !hasChanges ? "#64748B" : blueTheme.white, fontWeight: "800", fontSize: 15 }}>
+                {saving ? "SAVING..." : hasChanges ? "SAVE CHANGES" : "NO CHANGES"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleLogout}
+              activeOpacity={0.88}
+              style={{
+                backgroundColor: blueTheme.white,
+                borderWidth: 1,
+                borderColor: "#FCA5A5",
+                paddingVertical: 14,
+                borderRadius: 10,
+                alignItems: "center",
+                flexDirection: "row",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              <MaterialIcons name="logout" size={18} color="#DC2626" />
+              <Text style={{ color: "#DC2626", fontWeight: "800", fontSize: 15 }}>
+                LOGOUT
+              </Text>
+            </TouchableOpacity>
+          </AnimatedView>
+        </View>
       </ScrollView>
 
       {!!success && (

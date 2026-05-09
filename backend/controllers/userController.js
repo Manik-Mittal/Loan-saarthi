@@ -1,19 +1,43 @@
 const User = require("../models/User");
 
+const normalizePhone = (phone) => String(phone || "").replace(/\D/g, "").slice(-10);
+
+const profileNeedsOnboarding = (user) => {
+    const addressIsString = typeof user?.address === "string";
+
+    return [
+        user?.name,
+        user?.dob,
+        user?.gender,
+        user?.address?.line1 || user?.address,
+        addressIsString ? "provided" : user?.address?.city,
+        addressIsString ? "provided" : user?.address?.state,
+        user?.address?.pincode || user?.pincode,
+    ].some((value) => !String(value || "").trim());
+};
+
 // Create or login user (basic)
 exports.loginUser = async (req, res) => {
     try {
-        const { phone } = req.body;
+        const phone = normalizePhone(req.body.phone);
 
-        let user = await User.findOne({ phone });
+        if (!/^\d{10}$/.test(phone)) {
+            return res.status(400).json({ error: "Enter a valid 10 digit mobile number" });
+        }
 
-        if (!user) {
+        const existingUser = await User.findOne({ phone });
+        const isNewUser = !existingUser;
+        let user = existingUser;
+
+        if (isNewUser) {
             user = await User.create({ phone });
         }
-  
 
-
-        res.json(user);
+        res.json({
+            ...user.toObject(),
+            isNewUser,
+            requiresOnboarding: profileNeedsOnboarding(user)
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

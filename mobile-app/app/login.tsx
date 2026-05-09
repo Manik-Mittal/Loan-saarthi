@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableO
 import Animated, { Easing, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withTiming, ZoomIn } from "react-native-reanimated";
 import { loginUser } from "../src/services/userApi";
 import { useUser } from "../src/context/UserContext";
+import { needsOnboarding } from "../src/utils/profile";
 
 const theme = {
     primary: "#2F6FED",
@@ -82,17 +83,24 @@ export default function Login() {
     }));
 
     const handleLogin = async () => {
-        if (!phone.trim()) {
-            alert("Enter phone number");
+        const normalizedPhone = phone.replace(/\D/g, "").slice(-10);
+
+        if (!/^\d{10}$/.test(normalizedPhone)) {
+            alert("Enter a valid 10 digit mobile number");
             return;
         }
 
         try {
             setLoading(true);
-            const res = await loginUser(phone.trim());
-            await setUser(res.data);
+            const res = await loginUser(normalizedPhone);
+            const shouldShowOnboarding = res.data?.isNewUser === true || (res.data?.isNewUser !== false && needsOnboarding(res.data));
+            const userData = {
+                ...res.data,
+                isNewUser: res.data?.isNewUser ?? shouldShowOnboarding,
+            };
+            await setUser(userData);
             setTimeout(() => {
-                router.replace("/(tabs)/home");
+                router.replace(shouldShowOnboarding ? "/onboarding" : "/(tabs)/home");
             }, 100);
         } catch (err) {
             console.log(err);
