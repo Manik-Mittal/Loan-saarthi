@@ -40,6 +40,7 @@ exports.createLoan = async (req, res) => {
             income: req.body.income,
             loanAmount: req.body.loanAmount,
             duration: req.body.duration,
+            documents: req.body.documents,
             status: "In Review",
         });
 

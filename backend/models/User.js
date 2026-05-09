@@ -9,7 +9,14 @@ const userSchema = new mongoose.Schema({
     name: String,
     dob: String,
     email: String,
-    address: mongoose.Schema.Types.Mixed,
+    address: {
+        line1: String,
+        line2: String,
+        city: String,
+        state: String,
+        pincode: String,
+        country: String
+    },
     pincode: String,
     pan: String,
     gender: String,
@@ -30,7 +37,9 @@ const userSchema = new mongoose.Schema({
         loanAmount: String,
         duration: String,
         bank: String
-    }
+    },
+
+    documents: mongoose.Schema.Types.Mixed
 
 }, { timestamps: true });
 

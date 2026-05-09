@@ -7,19 +7,21 @@ import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { useUser } from "../../src/context/UserContext";
 import { getProfile, updateProfile } from "../../src/services/userApi";
 
-const blueTheme = {
-  primary: "#0F4C81",
-  skyBlue: "#2563EB",
-  surface: "#F5F7FA",
+const fintechTheme = {
+  primary: "#2F6FED",
+  skyBlue: "#2F6FED",
+  ink: "#172033",
+  mint: "#18A999",
+  amber: "#D9822B",
+  surface: "#F7FAFD",
   white: "#FFFFFF",
-  text: "#101828",
-  subText: "#667085",
-  border: "#EAECF0",
-  lightGray: "#F2F4F7",
-  paleBlue: "#EAF2FF",
-  ink: "#0B1220",
-  mint: "#0E9384",
-  amber: "#B54708",
+  text: "#172033",
+  subText: "#758195",
+  border: "#E8EEF5",
+  lightGray: "#F1F5FA",
+  paleBlue: "#EDF5FF",
+  softBlue: "#F1F7FF",
+  cream: "#FFF8EF",
 };
 
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -63,9 +65,30 @@ const emptyProfile = {
   },
 };
 
+function parseLegacyAddress(address: string, pincode = "") {
+  const parts = address
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const country = parts.length >= 2 ? parts[parts.length - 1] : emptyProfile.address.country;
+  const state = parts.length >= 2 ? parts[parts.length - 2] : "";
+  const city = parts.length >= 3 ? parts[parts.length - 3] : "";
+  const streetParts = parts.slice(0, Math.max(parts.length - 3, 1));
+
+  return {
+    ...emptyProfile.address,
+    line1: streetParts[0] || address,
+    line2: streetParts.slice(1).join(", "),
+    city,
+    state,
+    pincode,
+    country: country || emptyProfile.address.country,
+  };
+}
+
 function mergeProfile(user: any) {
   const address = typeof user?.address === "string"
-    ? { ...emptyProfile.address, line1: user.address, pincode: user?.pincode || "" }
+    ? parseLegacyAddress(user.address, user?.pincode || "")
     : {
       ...emptyProfile.address,
       ...(user?.address || {}),
@@ -130,10 +153,10 @@ function Row({ label, value, onChangeText, keyboardType = "default", multiline =
         paddingVertical: 14,
         paddingHorizontal: 16,
         borderBottomWidth: 1,
-        borderBottomColor: blueTheme.border,
+        borderBottomColor: fintechTheme.border,
       }}
     >
-      <Text style={{ color: blueTheme.subText, fontSize: 12, fontWeight: "700", marginBottom: 7 }}>
+      <Text style={{ color: fintechTheme.subText, fontSize: 12, fontWeight: "700", marginBottom: 7 }}>
         {label}
       </Text>
       <TextInput
@@ -144,7 +167,7 @@ function Row({ label, value, onChangeText, keyboardType = "default", multiline =
         placeholder={`Add ${label.toLowerCase()}`}
         placeholderTextColor="#9CA3AF"
         style={{
-          color: blueTheme.text,
+          color: fintechTheme.text,
           fontSize: 15,
           fontWeight: "600",
           minHeight: multiline ? 64 : 30,
@@ -165,17 +188,17 @@ function SelectRow({ label, value, onPress }: any) {
         paddingVertical: 14,
         paddingHorizontal: 16,
         borderBottomWidth: 1,
-        borderBottomColor: blueTheme.border,
+        borderBottomColor: fintechTheme.border,
       }}
     >
-      <Text style={{ color: blueTheme.subText, fontSize: 12, fontWeight: "700", marginBottom: 6 }}>
+      <Text style={{ color: fintechTheme.subText, fontSize: 12, fontWeight: "700", marginBottom: 6 }}>
         {label}
       </Text>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <Text style={{ color: value ? blueTheme.text : "#9CA3AF", fontSize: 15, fontWeight: "600", flex: 1 }}>
+        <Text style={{ color: value ? fintechTheme.text : "#9CA3AF", fontSize: 15, fontWeight: "600", flex: 1 }}>
           {value || `Select ${label.toLowerCase()}`}
         </Text>
-        <MaterialIcons name="keyboard-arrow-down" size={22} color={blueTheme.subText} />
+        <MaterialIcons name="keyboard-arrow-down" size={22} color={fintechTheme.subText} />
       </View>
     </TouchableOpacity>
   );
@@ -190,17 +213,17 @@ function DateRow({ label, value, onPress }: any) {
         paddingVertical: 14,
         paddingHorizontal: 16,
         borderBottomWidth: 1,
-        borderBottomColor: blueTheme.border,
+        borderBottomColor: fintechTheme.border,
       }}
     >
-      <Text style={{ color: blueTheme.subText, fontSize: 12, fontWeight: "700", marginBottom: 6 }}>
+      <Text style={{ color: fintechTheme.subText, fontSize: 12, fontWeight: "700", marginBottom: 6 }}>
         {label}
       </Text>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <Text style={{ color: value ? blueTheme.text : "#9CA3AF", fontSize: 15, fontWeight: "600", flex: 1 }}>
+        <Text style={{ color: value ? fintechTheme.text : "#9CA3AF", fontSize: 15, fontWeight: "600", flex: 1 }}>
           {value || "Select date"}
         </Text>
-        <MaterialIcons name="calendar-today" size={19} color={blueTheme.subText} />
+        <MaterialIcons name="calendar-today" size={19} color={fintechTheme.subText} />
       </View>
     </TouchableOpacity>
   );
@@ -221,7 +244,7 @@ function SelectModal({ visible, title, options, value, onSelect, onClose }: any)
         <TouchableOpacity
           activeOpacity={1}
           style={{
-            backgroundColor: blueTheme.white,
+            backgroundColor: fintechTheme.white,
             borderTopLeftRadius: 18,
             borderTopRightRadius: 18,
             padding: 16,
@@ -229,9 +252,9 @@ function SelectModal({ visible, title, options, value, onSelect, onClose }: any)
           }}
         >
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <Text style={{ color: blueTheme.text, fontSize: 18, fontWeight: "800" }}>{title}</Text>
+            <Text style={{ color: fintechTheme.text, fontSize: 18, fontWeight: "800" }}>{title}</Text>
             <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center" }}>
-              <MaterialIcons name="close" size={22} color={blueTheme.subText} />
+              <MaterialIcons name="close" size={22} color={fintechTheme.subText} />
             </TouchableOpacity>
           </View>
 
@@ -250,14 +273,14 @@ function SelectModal({ visible, title, options, value, onSelect, onClose }: any)
                   paddingVertical: 13,
                   paddingHorizontal: 12,
                   borderRadius: 10,
-                  backgroundColor: selected ? blueTheme.paleBlue : blueTheme.white,
+                  backgroundColor: selected ? fintechTheme.paleBlue : fintechTheme.white,
                   marginBottom: 4,
                 }}
               >
-                <Text style={{ color: selected ? blueTheme.primary : blueTheme.text, fontSize: 15, fontWeight: "700" }}>
+                <Text style={{ color: selected ? fintechTheme.primary : fintechTheme.text, fontSize: 15, fontWeight: "700" }}>
                   {option}
                 </Text>
-                {selected && <MaterialIcons name="check" size={20} color={blueTheme.primary} />}
+                {selected && <MaterialIcons name="check" size={20} color={fintechTheme.primary} />}
               </TouchableOpacity>
             );
           })}
@@ -317,46 +340,46 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: "rgba(15, 23, 42, 0.36)", justifyContent: "center", padding: 18 }}>
-        <View style={{ backgroundColor: blueTheme.white, borderRadius: 16, padding: 16 }}>
+        <View style={{ backgroundColor: fintechTheme.white, borderRadius: 16, padding: 16 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <Text style={{ color: blueTheme.text, fontSize: 18, fontWeight: "800" }}>Date of Birth</Text>
+            <Text style={{ color: fintechTheme.text, fontSize: 18, fontWeight: "800" }}>Date of Birth</Text>
             <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center" }}>
-              <MaterialIcons name="close" size={22} color={blueTheme.subText} />
+              <MaterialIcons name="close" size={22} color={fintechTheme.subText} />
             </TouchableOpacity>
           </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <TouchableOpacity onPress={() => moveMonth(-1)} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}>
-              <MaterialIcons name="chevron-left" size={26} color={blueTheme.primary} />
+              <MaterialIcons name="chevron-left" size={26} color={fintechTheme.primary} />
             </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: 8 }}>
               <TouchableOpacity
                 activeOpacity={0.84}
                 onPress={() => setPicker("month")}
-                style={{ backgroundColor: blueTheme.paleBlue, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}
+                style={{ backgroundColor: fintechTheme.paleBlue, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}
               >
-                <Text style={{ color: blueTheme.primary, fontSize: 14, fontWeight: "800" }}>
+                <Text style={{ color: fintechTheme.primary, fontSize: 14, fontWeight: "800" }}>
                   {monthLabel.split(" ")[0]}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.84}
                 onPress={() => setPicker("year")}
-                style={{ backgroundColor: blueTheme.lightGray, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}
+                style={{ backgroundColor: fintechTheme.lightGray, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}
               >
-                <Text style={{ color: blueTheme.text, fontSize: 14, fontWeight: "800" }}>
+                <Text style={{ color: fintechTheme.text, fontSize: 14, fontWeight: "800" }}>
                   {year}
                 </Text>
               </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={() => moveMonth(1)} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}>
-              <MaterialIcons name="chevron-right" size={26} color={blueTheme.primary} />
+              <MaterialIcons name="chevron-right" size={26} color={fintechTheme.primary} />
             </TouchableOpacity>
           </View>
 
           <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-              <Text key={day} style={{ width: "14.28%", textAlign: "center", color: blueTheme.subText, fontSize: 12, fontWeight: "800", marginBottom: 8 }}>
+              <Text key={day} style={{ width: "14.28%", textAlign: "center", color: fintechTheme.subText, fontSize: 12, fontWeight: "800", marginBottom: 8 }}>
                 {day}
               </Text>
             ))}
@@ -385,10 +408,10 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
                         borderRadius: 17,
                         alignItems: "center",
                         justifyContent: "center",
-                        backgroundColor: selected ? blueTheme.primary : "transparent",
+                        backgroundColor: selected ? fintechTheme.primary : "transparent",
                       }}
                     >
-                      <Text style={{ color: selected ? blueTheme.white : blueTheme.text, fontSize: 14, fontWeight: "700" }}>
+                      <Text style={{ color: selected ? fintechTheme.white : fintechTheme.text, fontSize: 14, fontWeight: "700" }}>
                         {day}
                       </Text>
                     </View>
@@ -408,7 +431,7 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
             <TouchableOpacity
               activeOpacity={1}
               style={{
-                backgroundColor: blueTheme.white,
+                backgroundColor: fintechTheme.white,
                 borderTopLeftRadius: 18,
                 borderTopRightRadius: 18,
                 padding: 16,
@@ -416,11 +439,11 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <Text style={{ color: blueTheme.text, fontSize: 18, fontWeight: "800" }}>
+                <Text style={{ color: fintechTheme.text, fontSize: 18, fontWeight: "800" }}>
                   Select {picker === "month" ? "Month" : "Year"}
                 </Text>
                 <TouchableOpacity onPress={() => setPicker(null)} style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center" }}>
-                  <MaterialIcons name="close" size={22} color={blueTheme.subText} />
+                  <MaterialIcons name="close" size={22} color={fintechTheme.subText} />
                 </TouchableOpacity>
               </View>
 
@@ -441,14 +464,14 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
                         paddingVertical: 13,
                         paddingHorizontal: 12,
                         borderRadius: 10,
-                        backgroundColor: selected ? blueTheme.paleBlue : blueTheme.white,
+                        backgroundColor: selected ? fintechTheme.paleBlue : fintechTheme.white,
                         marginBottom: 4,
                       }}
                     >
-                      <Text style={{ color: selected ? blueTheme.primary : blueTheme.text, fontSize: 15, fontWeight: "700" }}>
+                      <Text style={{ color: selected ? fintechTheme.primary : fintechTheme.text, fontSize: 15, fontWeight: "700" }}>
                         {optionLabel}
                       </Text>
-                      {selected && <MaterialIcons name="check" size={20} color={blueTheme.primary} />}
+                      {selected && <MaterialIcons name="check" size={20} color={fintechTheme.primary} />}
                     </TouchableOpacity>
                   );
                 })}
@@ -466,16 +489,16 @@ function SectionCard({ title, icon, children, delay }: any) {
     <AnimatedView
       entering={FadeInDown.duration(600).delay(delay)}
       style={{
-        backgroundColor: blueTheme.white,
+        backgroundColor: fintechTheme.white,
         borderRadius: 10,
         marginBottom: 16,
         overflow: "hidden",
         borderWidth: 1,
-        borderColor: blueTheme.border,
-        shadowColor: "#101828",
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
+        borderColor: fintechTheme.border,
+        shadowColor: "#8AA4C2",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.07,
+        shadowRadius: 14,
         elevation: 2,
       }}
     >
@@ -486,7 +509,7 @@ function SectionCard({ title, icon, children, delay }: any) {
           paddingHorizontal: 16,
           paddingVertical: 15,
           borderBottomWidth: 1,
-          borderBottomColor: blueTheme.border,
+          borderBottomColor: fintechTheme.border,
         }}
       >
         <View
@@ -494,14 +517,14 @@ function SectionCard({ title, icon, children, delay }: any) {
             width: 32,
             height: 32,
             borderRadius: 8,
-            backgroundColor: blueTheme.paleBlue,
+            backgroundColor: fintechTheme.paleBlue,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <MaterialIcons name={icon} size={18} color={blueTheme.primary} />
+          <MaterialIcons name={icon} size={18} color={fintechTheme.primary} />
         </View>
-        <Text style={{ fontSize: 15, fontWeight: "800", color: blueTheme.text, marginLeft: 10 }}>
+        <Text style={{ fontSize: 15, fontWeight: "800", color: fintechTheme.text, marginLeft: 10 }}>
           {title}
         </Text>
       </View>
@@ -639,13 +662,13 @@ export default function Profile() {
   const completion = Math.round((requiredFields.filter(Boolean).length / requiredFields.length) * 100);
 
   return (
-    <View style={{ flex: 1, backgroundColor: blueTheme.surface }}>
+    <View style={{ flex: 1, backgroundColor: fintechTheme.surface }}>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 96 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ backgroundColor: blueTheme.ink, paddingTop: 18, paddingHorizontal: 16, paddingBottom: 72 }}>
+        <View style={{ backgroundColor: "#EAF4FF", paddingTop: 18, paddingHorizontal: 16, paddingBottom: 72 }}>
           <AnimatedView
             entering={FadeInDown.duration(600)}
             style={{
@@ -655,10 +678,10 @@ export default function Profile() {
             }}
           >
             <View>
-              <Text style={{ color: "#98A2B3", fontSize: 12, fontWeight: "800", letterSpacing: 0 }}>
+              <Text style={{ color: fintechTheme.subText, fontSize: 12, fontWeight: "800", letterSpacing: 0 }}>
                 ACCOUNT
               </Text>
-              <Text style={{ fontSize: 26, fontWeight: "900", color: blueTheme.white, marginTop: 3 }}>
+              <Text style={{ fontSize: 26, fontWeight: "900", color: fintechTheme.text, marginTop: 3 }}>
                 Profile
               </Text>
             </View>
@@ -668,15 +691,15 @@ export default function Profile() {
               style={{
                 width: 42,
                 height: 42,
-                borderRadius: 10,
-                backgroundColor: "rgba(255,255,255,0.08)",
+                borderRadius: 14,
+                backgroundColor: fintechTheme.white,
                 alignItems: "center",
                 justifyContent: "center",
                 borderWidth: 1,
-                borderColor: "rgba(255,255,255,0.12)",
+                borderColor: "#DDEBFA",
               }}
             >
-              <MaterialIcons name="logout" size={20} color={blueTheme.white} />
+              <MaterialIcons name="logout" size={20} color={fintechTheme.primary} />
             </TouchableOpacity>
           </AnimatedView>
         </View>
@@ -684,15 +707,15 @@ export default function Profile() {
         <AnimatedView entering={ZoomIn.duration(600).delay(100)} style={{ paddingHorizontal: 16, marginTop: -52, marginBottom: 18 }}>
           <View
             style={{
-              backgroundColor: blueTheme.white,
+              backgroundColor: fintechTheme.white,
               borderRadius: 10,
               padding: 18,
               borderWidth: 1,
-              borderColor: blueTheme.border,
-              shadowColor: "#101828",
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.08,
-              shadowRadius: 16,
+              borderColor: fintechTheme.border,
+              shadowColor: "#8AA4C2",
+              shadowOffset: { width: 0, height: 10 },
+              shadowOpacity: 0.12,
+              shadowRadius: 20,
               elevation: 4,
             }}
           >
@@ -702,19 +725,19 @@ export default function Profile() {
                   width: 62,
                   height: 62,
                   borderRadius: 14,
-                  backgroundColor: blueTheme.primary,
+                  backgroundColor: fintechTheme.primary,
                   justifyContent: "center",
                   alignItems: "center",
                   marginRight: 14,
                 }}
               >
-                <Text style={{ fontSize: 25, color: blueTheme.white, fontWeight: "900" }}>{initials}</Text>
+                <Text style={{ fontSize: 25, color: fintechTheme.white, fontWeight: "900" }}>{initials}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: "900", color: blueTheme.text, marginBottom: 3 }}>
+                <Text style={{ fontSize: 18, fontWeight: "900", color: fintechTheme.text, marginBottom: 3 }}>
                   {data.name || "Complete your profile"}
                 </Text>
-                <Text style={{ fontSize: 13, color: blueTheme.subText, fontWeight: "600" }}>
+                <Text style={{ fontSize: 13, color: fintechTheme.subText, fontWeight: "600" }}>
                   {data.phone || "Phone not added"}
                 </Text>
               </View>
@@ -725,44 +748,44 @@ export default function Profile() {
                   width: 42,
                   height: 42,
                   borderRadius: 10,
-                  backgroundColor: blueTheme.lightGray,
+                  backgroundColor: fintechTheme.lightGray,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <MaterialIcons name="refresh" size={20} color={blueTheme.primary} />
+                <MaterialIcons name="refresh" size={20} color={fintechTheme.primary} />
               </TouchableOpacity>
             </View>
 
             <View style={{ marginBottom: 16 }}>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <Text style={{ color: blueTheme.text, fontSize: 13, fontWeight: "800" }}>Loan readiness</Text>
-                <Text style={{ color: completion >= 80 ? blueTheme.mint : blueTheme.amber, fontSize: 13, fontWeight: "900" }}>
+                <Text style={{ color: fintechTheme.text, fontSize: 13, fontWeight: "800" }}>Loan readiness</Text>
+                <Text style={{ color: completion >= 80 ? fintechTheme.mint : fintechTheme.amber, fontSize: 13, fontWeight: "900" }}>
                   {completion}%
                 </Text>
               </View>
-              <View style={{ height: 8, borderRadius: 4, backgroundColor: blueTheme.lightGray, overflow: "hidden" }}>
+              <View style={{ height: 8, borderRadius: 4, backgroundColor: fintechTheme.lightGray, overflow: "hidden" }}>
                 <View
                   style={{
                     width: `${completion}%`,
                     height: 8,
                     borderRadius: 4,
-                    backgroundColor: completion >= 80 ? blueTheme.mint : blueTheme.primary,
+                    backgroundColor: completion >= 80 ? fintechTheme.mint : fintechTheme.primary,
                   }}
                 />
               </View>
             </View>
 
             <View style={{ flexDirection: "row", gap: 10 }}>
-              <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 8, padding: 12, borderWidth: 1, borderColor: blueTheme.border }}>
-                <Text style={{ color: blueTheme.subText, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>COURSE</Text>
-                <Text numberOfLines={1} style={{ color: blueTheme.text, fontSize: 14, fontWeight: "900" }}>
+              <View style={{ flex: 1, backgroundColor: fintechTheme.softBlue, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: "#DEECFF" }}>
+                <Text style={{ color: fintechTheme.subText, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>COURSE</Text>
+                <Text numberOfLines={1} style={{ color: fintechTheme.text, fontSize: 14, fontWeight: "900" }}>
                   {data.education.course || "Pending"}
                 </Text>
               </View>
-              <View style={{ flex: 1, backgroundColor: "#F8FAFC", borderRadius: 8, padding: 12, borderWidth: 1, borderColor: blueTheme.border }}>
-                <Text style={{ color: blueTheme.subText, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>LOAN NEED</Text>
-                <Text numberOfLines={1} style={{ color: blueTheme.text, fontSize: 14, fontWeight: "900" }}>
+              <View style={{ flex: 1, backgroundColor: fintechTheme.cream, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: "#F8E5C7" }}>
+                <Text style={{ color: fintechTheme.subText, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>LOAN NEED</Text>
+                <Text numberOfLines={1} style={{ color: fintechTheme.text, fontSize: 14, fontWeight: "900" }}>
                   {data.financial.loanAmount ? `₹${data.financial.loanAmount}` : "Pending"}
                 </Text>
               </View>
@@ -770,7 +793,7 @@ export default function Profile() {
           </View>
         </AnimatedView>
 
-        {loading && <ActivityIndicator size="large" color={blueTheme.skyBlue} style={{ marginBottom: 14 }} />}
+        {loading && <ActivityIndicator size="large" color={fintechTheme.skyBlue} style={{ marginBottom: 14 }} />}
         {!!error && (
           <Text style={{ color: "#B45309", fontSize: 13, fontWeight: "700", paddingHorizontal: 16, marginBottom: 14 }}>
             {error}
@@ -784,22 +807,22 @@ export default function Profile() {
             <Row label="Phone Number" value={data.phone} keyboardType="phone-pad" onChangeText={(val: string) => updateField("phone", val)} />
             <Row label="Email Address" value={data.email} keyboardType="email-address" onChangeText={(val: string) => updateField("email", val)} />
 
-            <View style={{ borderBottomWidth: 1, borderBottomColor: blueTheme.border }}>
+            <View style={{ borderBottomWidth: 1, borderBottomColor: fintechTheme.border }}>
               <Row label="Address Line 1" value={data.address.line1} onChangeText={(val: string) => updateAddressField("line1", val)} />
             </View>
-            <View style={{ borderBottomWidth: 1, borderBottomColor: blueTheme.border }}>
+            <View style={{ borderBottomWidth: 1, borderBottomColor: fintechTheme.border }}>
               <Row label="Address Line 2 (Optional)" value={data.address.line2} onChangeText={(val: string) => updateAddressField("line2", val)} />
             </View>
-            <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: blueTheme.border }}>
-              <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: blueTheme.border }}>
+            <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: fintechTheme.border }}>
+              <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: fintechTheme.border }}>
                 <Row label="City" value={data.address.city} onChangeText={(val: string) => updateAddressField("city", val)} />
               </View>
               <View style={{ flex: 1 }}>
                 <Row label="State" value={data.address.state} onChangeText={(val: string) => updateAddressField("state", val)} />
               </View>
             </View>
-            <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: blueTheme.border }}>
-              <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: blueTheme.border }}>
+            <View style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: fintechTheme.border }}>
+              <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: fintechTheme.border }}>
                 <Row label="Pincode" value={data.address.pincode} keyboardType="numeric" onChangeText={(val: string) => updateAddressField("pincode", val)} />
               </View>
               <View style={{ flex: 1 }}>
@@ -860,7 +883,7 @@ export default function Profile() {
               disabled={saving || !hasChanges}
               activeOpacity={0.88}
               style={{
-                backgroundColor: saving || !hasChanges ? "#CBD5E1" : blueTheme.primary,
+                backgroundColor: saving || !hasChanges ? "#CBD5E1" : fintechTheme.primary,
                 paddingVertical: 14,
                 borderRadius: 10,
                 alignItems: "center",
@@ -868,7 +891,7 @@ export default function Profile() {
                 opacity: saving || !hasChanges ? 0.8 : 1,
               }}
             >
-              <Text style={{ color: saving || !hasChanges ? "#64748B" : blueTheme.white, fontWeight: "800", fontSize: 15 }}>
+              <Text style={{ color: saving || !hasChanges ? "#64748B" : fintechTheme.white, fontWeight: "800", fontSize: 15 }}>
                 {saving ? "SAVING..." : hasChanges ? "SAVE CHANGES" : "NO CHANGES"}
               </Text>
             </TouchableOpacity>
@@ -877,7 +900,7 @@ export default function Profile() {
               onPress={handleLogout}
               activeOpacity={0.88}
               style={{
-                backgroundColor: blueTheme.white,
+                backgroundColor: fintechTheme.white,
                 borderWidth: 1,
                 borderColor: "#FCA5A5",
                 paddingVertical: 14,
@@ -920,7 +943,7 @@ export default function Profile() {
           }}
         >
           <MaterialIcons name="check-circle" size={20} color="#34D399" />
-          <Text style={{ color: blueTheme.white, fontSize: 14, fontWeight: "800", flex: 1 }}>
+          <Text style={{ color: fintechTheme.white, fontSize: 14, fontWeight: "800", flex: 1 }}>
             {success}
           </Text>
         </AnimatedView>

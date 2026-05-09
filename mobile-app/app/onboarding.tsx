@@ -442,13 +442,6 @@ export default function Onboarding() {
     try {
       setSaving(true);
       setError("");
-      const addressText = [
-        form.address.line1.trim(),
-        form.address.line2.trim(),
-        form.address.city.trim(),
-        form.address.state.trim(),
-        form.address.country.trim(),
-      ].filter(Boolean).join(", ");
       const structuredAddress = {
         line1: form.address.line1.trim(),
         line2: form.address.line2.trim(),
@@ -462,11 +455,11 @@ export default function Onboarding() {
         dob: form.dob.trim(),
         gender: form.gender.trim(),
         phone: user.phone,
-        address: addressText,
+        address: structuredAddress,
         pincode: form.address.pincode.trim(),
       };
       const res = await updateProfile(user._id, payload);
-      await setUser({ ...res.data, address: structuredAddress, pincode: form.address.pincode.trim() });
+      await setUser(res.data);
       router.replace("/(tabs)/home");
     } catch (err: any) {
       setError(err?.response?.data?.error || err?.message || "Unable to update profile");

@@ -44,6 +44,12 @@
         {
           "locationAlwaysAndWhenInUsePermissions": "Allow LoanSaarthi to access your location for service area verification."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow LoanSaarthi to access your photos to upload your passport size photo."
+        }
       ]
     ],
     "experiments": {

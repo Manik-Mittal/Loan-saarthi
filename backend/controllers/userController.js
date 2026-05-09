@@ -16,6 +16,57 @@ const profileNeedsOnboarding = (user) => {
     ].some((value) => !String(value || "").trim());
 };
 
+const removeUndefined = (value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return value;
+    }
+
+    return Object.fromEntries(
+        Object.entries(value)
+            .map(([entryKey, entryValue]) => [entryKey, removeUndefined(entryValue)])
+            .filter(([, entryValue]) => {
+                if (entryValue === undefined) return false;
+                if (entryValue && typeof entryValue === "object" && !Array.isArray(entryValue)) {
+                    return Object.keys(entryValue).length > 0;
+                }
+                return true;
+            })
+    );
+};
+
+const normalizeAddress = (address, pincode) => {
+    if (!address) return undefined;
+
+    if (typeof address === "string") {
+        const parts = address
+            .split(",")
+            .map((part) => part.trim())
+            .filter(Boolean);
+
+        return removeUndefined({
+            line1: parts[0] || address,
+            line2: parts.length > 4 ? parts.slice(1, -3).join(", ") : undefined,
+            city: parts.length >= 3 ? parts[parts.length - 3] : undefined,
+            state: parts.length >= 2 ? parts[parts.length - 2] : undefined,
+            pincode,
+            country: parts.length >= 2 ? parts[parts.length - 1] : "India",
+        });
+    }
+
+    if (typeof address === "object" && !Array.isArray(address)) {
+        return removeUndefined({
+            line1: address.line1,
+            line2: address.line2,
+            city: address.city,
+            state: address.state,
+            pincode: address.pincode || pincode,
+            country: address.country || "India",
+        });
+    }
+
+    return undefined;
+};
+
 // Create or login user (basic)
 exports.loginUser = async (req, res) => {
     try {
@@ -64,12 +115,12 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const { id } = req.params;
-        const allowedFields = {
+        const allowedFields = removeUndefined({
             name: req.body.name,
             dob: req.body.dob,
             phone: req.body.phone,
             email: req.body.email,
-            address: req.body.address,
+            address: normalizeAddress(req.body.address, req.body.pincode),
             pincode: req.body.pincode,
             pan: req.body.pan,
             gender: req.body.gender,
@@ -89,7 +140,8 @@ exports.updateProfile = async (req, res) => {
                 duration: req.body.financial?.duration,
                 bank: req.body.financial?.bank,
             },
-        };
+            documents: req.body.documents,
+        });
 
         const user = await User.findByIdAndUpdate(
             id,

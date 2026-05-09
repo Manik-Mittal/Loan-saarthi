@@ -17,6 +17,7 @@ const loanSchema = new mongoose.Schema({
     income: String,
     loanAmount: String,
     duration: String,
+    documents: mongoose.Schema.Types.Mixed,
     status: {
         type: String,
         default: "In Review"

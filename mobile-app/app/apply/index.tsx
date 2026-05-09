@@ -1,13 +1,21 @@
 import { View } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Step1 from "./step1";
 import Step2 from "./step2";
 import Step3 from "./step3";
 import Step4 from "./step4";
+import { useUser } from "../../src/context/UserContext";
 
 export default function Apply() {
+    const { user } = useUser();
     const [step, setStep] = useState(1);
-    const [form, setForm] = useState({}); // 🔥 CENTRAL STATE
+    const [form, setForm] = useState({ documents: user?.documents || {} }); // 🔥 CENTRAL STATE
+
+    useEffect(() => {
+        if (user?.documents) {
+            setForm((prev: any) => ({ ...prev, documents: prev.documents || user.documents }));
+        }
+    }, [user?.documents]);
 
     const next = () => setStep((prev) => prev + 1);
     const prev = () => setStep((prev) => prev - 1);

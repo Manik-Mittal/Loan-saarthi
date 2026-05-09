@@ -1,10 +1,13 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import * as DocumentPicker from "expo-document-picker";
+import * as ImagePicker from "expo-image-picker";
 import Btn from "../../src/components/Btn";
 import ProgressBar from "../../src/components/ProgressBar";
 import { useUser } from "../../src/context/UserContext";
 import { createLoan } from "../../src/services/loanApi";
+import { updateProfile } from "../../src/services/userApi";
 
 const theme = {
     primary: "#003087",
@@ -41,11 +44,89 @@ function ReviewSection({ title, icon, children }: any) {
     );
 }
 
-export default function Step4({ form = {}, prev }: any) {
-    const { user } = useUser();
+const requiredDocuments = [
+    { key: "aadhaar", label: "Aadhaar Card", icon: "badge", kind: "document" },
+    { key: "class10Marksheet", label: "Class 10 Marksheet", icon: "school", kind: "document" },
+    { key: "class12Marksheet", label: "Class 12 Marksheet", icon: "workspace-premium", kind: "document" },
+    { key: "admissionOfferLetter", label: "Admission Offer Letter", icon: "description", kind: "document" },
+    { key: "passportPhoto", label: "Passport Size Photo", icon: "photo-camera", kind: "image" },
+];
+
+function fileLabel(file: any) {
+    if (!file) return "Not uploaded";
+    return file.name || file.fileName || "Selected file";
+}
+
+export default function Step4({ form = {}, setForm = () => {}, prev }: any) {
+    const { user, setUser } = useUser();
     const [loading, setLoading] = useState(false);
+    const documents = form.documents || {};
+
+    const saveDocument = (key: string, file: any) => {
+        const nextDocuments = {
+            ...documents,
+            [key]: {
+                name: file.name || file.fileName || `${key}-document`,
+                uri: file.uri,
+                mimeType: file.mimeType || file.type || "",
+                size: file.size || file.fileSize || 0,
+                uploadedAt: new Date().toISOString(),
+            },
+        };
+
+        setForm({ ...form, documents: nextDocuments });
+    };
+
+    const pickDocument = async (key: string) => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: ["application/pdf", "image/*"],
+                copyToCacheDirectory: true,
+                multiple: false,
+            });
+
+            if (!result.canceled && result.assets?.[0]) {
+                saveDocument(key, result.assets[0]);
+            }
+        } catch (err: any) {
+            alert(err?.message || "Unable to select document");
+        }
+    };
+
+    const pickPhoto = async (key: string) => {
+        try {
+            const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+            if (!permission.granted) {
+                alert("Please allow photo access to upload passport size photo.");
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets?.[0]) {
+                saveDocument(key, {
+                    ...result.assets[0],
+                    name: result.assets[0].fileName || "passport-photo.jpg",
+                    mimeType: result.assets[0].mimeType || "image/jpeg",
+                });
+            }
+        } catch (err: any) {
+            alert(err?.message || "Unable to select photo");
+        }
+    };
+
+    const missingDocuments = requiredDocuments.filter((item) => !documents[item.key]);
 
     const handleSubmit = async () => {
+        if (missingDocuments.length > 0) {
+            alert(`Please upload: ${missingDocuments.map((item) => item.label).join(", ")}`);
+            return;
+        }
+
         try {
             setLoading(true);
             const payload = {
@@ -62,11 +143,16 @@ export default function Step4({ form = {}, prev }: any) {
                 income: form.income,
                 loanAmount: form.loanAmount,
                 duration: form.duration,
+                documents,
             };
 
             console.log("SUBMITTING:", payload);
 
             const res = await createLoan(payload);
+            if (user?._id) {
+                const profileRes = await updateProfile(user._id, { documents });
+                await setUser(profileRes.data);
+            }
 
             console.log("RESPONSE:", res.data);
             alert("Loan Submitted");
@@ -124,6 +210,32 @@ export default function Step4({ form = {}, prev }: any) {
                 <ReviewRow label="Annual Income" value={form.income ? `Rs. ${form.income}` : ""} />
                 <ReviewRow label="Loan Amount" value={form.loanAmount ? `Rs. ${form.loanAmount}` : ""} />
                 <ReviewRow label="Duration" value={form.duration ? `${form.duration} months` : ""} />
+            </ReviewSection>
+
+            <ReviewSection title="Documents" icon="folder">
+                {requiredDocuments.map((item) => {
+                    const uploaded = documents[item.key];
+
+                    return (
+                        <TouchableOpacity
+                            key={item.key}
+                            activeOpacity={0.84}
+                            onPress={() => item.kind === "image" ? pickPhoto(item.key) : pickDocument(item.key)}
+                            style={styles.documentRow}
+                        >
+                            <View style={styles.documentIcon}>
+                                <MaterialIcons name={item.icon as any} size={20} color={theme.primary} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.documentTitle}>{item.label}</Text>
+                                <Text numberOfLines={1} style={[styles.documentMeta, uploaded && styles.documentMetaDone]}>
+                                    {fileLabel(uploaded)}
+                                </Text>
+                            </View>
+                            <MaterialIcons name={uploaded ? "check-circle" : "upload-file"} size={22} color={uploaded ? theme.success : theme.skyBlue} />
+                        </TouchableOpacity>
+                    );
+                })}
             </ReviewSection>
 
             <View style={styles.actions}>
@@ -244,6 +356,37 @@ const styles = StyleSheet.create({
         color: theme.text,
         fontSize: 15,
         fontWeight: "600",
+    },
+    documentRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        paddingVertical: 12,
+        borderTopWidth: 1,
+        borderTopColor: "#F1F5F9",
+    },
+    documentIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        backgroundColor: theme.paleBlue,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    documentTitle: {
+        color: theme.text,
+        fontSize: 14,
+        fontWeight: "800",
+        marginBottom: 3,
+    },
+    documentMeta: {
+        color: theme.subText,
+        fontSize: 12,
+        fontWeight: "600",
+    },
+    documentMetaDone: {
+        color: theme.success,
+        fontWeight: "800",
     },
     actions: {
         flexDirection: "row",
