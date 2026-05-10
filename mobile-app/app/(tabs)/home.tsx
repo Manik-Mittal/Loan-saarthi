@@ -26,6 +26,8 @@ const fintechTheme = {
   cream: "#FFF8EF",
 };
 
+const ADMIN_PHONE = String(process.env.EXPO_PUBLIC_ADMIN_PHONE || "").replace(/\D/g, "").slice(-10);
+
 const AnimatedView = Animated.createAnimatedComponent(View);
 
 function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
@@ -81,6 +83,8 @@ function StatCard({ label, value, helper, icon }: any) {
 export default function Home() {
   const router = useRouter();
   const { user } = useUser();
+  const currentPhone = String(user?.phone || "").replace(/\D/g, "").slice(-10);
+  const isAdmin = Boolean(ADMIN_PHONE) && currentPhone === ADMIN_PHONE;
   const [activePage, setActivePage] = useState(0);
   const [loanAmount, setLoanAmount] = useState("");
   const [duration, setDuration] = useState("");
@@ -465,13 +469,15 @@ export default function Home() {
           <SectionHeader title="Support" />
           <View style={{ flexDirection: "row", gap: 10 }}>
             {[
-              { title: "Chat", detail: "Instant help", icon: "chat" },
-              { title: "Advisor", detail: "Call back", icon: "support-agent" },
-              { title: "FAQ", detail: "Answers", icon: "help-outline" },
+              { title: "Chat", detail: "Instant help", icon: "chat", onPress: () => {} },
+              { title: "Advisor", detail: "Call back", icon: "support-agent", onPress: () => router.push("/request-callback") },
+              { title: "FAQ", detail: "Answers", icon: "help-outline", onPress: () => router.push("/faq") },
+              ...(isAdmin ? [{ title: "Admin", detail: "Portal", icon: "admin-panel-settings", onPress: () => router.push("/admin-callbacks") }] : []),
             ].map((item) => (
               <TouchableOpacity
                 key={item.title}
                 activeOpacity={0.86}
+                onPress={item.onPress}
                 style={{
                   flex: 1,
                   backgroundColor: fintechTheme.white,
