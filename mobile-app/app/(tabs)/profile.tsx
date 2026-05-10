@@ -342,7 +342,27 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
     return `${dateYear}-${dateMonth}-${dateDay}`;
   };
 
-  const initialDate = value ? new Date(value) : new Date();
+  const parseDateValue = (rawValue: any) => {
+    if (!rawValue) return new Date();
+
+    const text = String(rawValue).trim();
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      const [yearPart, monthPart, dayPart] = text.split("-").map(Number);
+      return new Date(yearPart, monthPart - 1, dayPart);
+    }
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(text)) {
+      const [dayPart, monthPart, yearPart] = text.split("/").map(Number);
+      return new Date(yearPart, monthPart - 1, dayPart);
+    }
+
+    const parsed = new Date(text);
+    return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  const initialDate = parseDateValue(value);
+  const selectedValue = value ? formatLocalDate(parseDateValue(value)) : "";
   const [monthDate, setMonthDate] = useState(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
   const [picker, setPicker] = useState<"month" | "year" | null>(null);
   const year = monthDate.getFullYear();
@@ -429,7 +449,7 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
             ))}
             {days.map((day, index) => {
               const dateValue = day ? formatLocalDate(new Date(year, month, Number(day))) : "";
-              const selected = dateValue === value;
+              const selected = dateValue === selectedValue;
 
               return (
                 <TouchableOpacity

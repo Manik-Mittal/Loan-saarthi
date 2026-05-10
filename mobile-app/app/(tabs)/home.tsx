@@ -326,7 +326,7 @@ export default function Home() {
 
         <AnimatedView entering={FadeInDown.duration(540).delay(280)} style={{ paddingHorizontal: 16 }}>
           <SectionTitle title="Help & Guidance" />
-          <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", flexWrap: "wrap", rowGap: 10 }}>
             {[
               { title: "Request Callback", sub: "Talk to advisor", icon: "support-agent", bg: theme.softBlue, onPress: () => router.push("/request-callback") },
               { title: "Education Loan FAQ", sub: "Important answers", icon: "help-outline", bg: "#E8F8F5", onPress: () => router.push("/faq") },
@@ -337,7 +337,7 @@ export default function Home() {
                 activeOpacity={0.86}
                 onPress={item.onPress}
                 style={{
-                  width: isAdmin ? "48.3%" : "48.5%",
+                  width: isAdmin ? "48.5%" : "48.5%",
                   backgroundColor: theme.paper,
                   borderRadius: 12,
                   padding: 13,
