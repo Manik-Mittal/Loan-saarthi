@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { useUser } from "../../src/context/UserContext";
@@ -536,6 +536,7 @@ function SectionCard({ title, icon, children, delay }: any) {
 export default function Profile() {
   const router = useRouter();
   const { user, setUser, logout } = useUser();
+  const scrollRef = useRef<ScrollView | null>(null);
   const userId = user?._id;
   const userPhone = user?.phone;
   const [data, setData] = useState<any>(normalizeProfile(user));
@@ -575,6 +576,7 @@ export default function Profile() {
 
   useFocusEffect(
     useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
       loadProfile();
     }, [loadProfile])
   );
@@ -664,6 +666,7 @@ export default function Profile() {
   return (
     <View style={{ flex: 1, backgroundColor: fintechTheme.surface }}>
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 96 }}
         showsVerticalScrollIndicator={false}

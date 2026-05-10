@@ -1,24 +1,27 @@
 import { Redirect } from "expo-router";
-import { useUser } from "../../src/context/UserContext";
 import { Text, View } from "react-native";
+import { useUser } from "../../src/context/UserContext";
+
+const ADMIN_PHONE = String(process.env.EXPO_PUBLIC_ADMIN_PHONE || "").replace(/\D/g, "").slice(-10);
 
 export default function Index() {
-    const { user, loading } = useUser();
+  const { user, loading } = useUser();
+  const currentPhone = String(user?.phone || "").replace(/\D/g, "").slice(-10);
 
-    // ⏳ Wait until AsyncStorage loads
-    if (loading) {
-        return (
-            <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                <Text>Loading...</Text>
-            </View>
-        );
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (user) {
+    if (ADMIN_PHONE && currentPhone === ADMIN_PHONE) {
+      return <Redirect href="/admin-callbacks" />;
     }
+    return <Redirect href="/(tabs)/home" />;
+  }
 
-    // If user exists → go to Home
-    if (user) {
-        return <Redirect href="/(tabs)/home" />;
-    }
-
-    //  If no user → go to Login
-    return <Redirect href="/login" />;
+  return <Redirect href="/login" />;
 }

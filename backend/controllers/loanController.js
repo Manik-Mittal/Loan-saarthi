@@ -67,3 +67,38 @@ exports.getLoansByUser = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+exports.getAllLoans = async (_req, res) => {
+    try {
+        const loans = await Loan.find({}).sort({ createdAt: -1 });
+        return res.json({ loans });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+exports.updateLoanStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        const allowed = ["In Review", "Approved", "Rejected", "Disbursed"];
+
+        if (!allowed.includes(status)) {
+            return res.status(400).json({ error: "Invalid status" });
+        }
+
+        const loan = await Loan.findByIdAndUpdate(
+            id,
+            { status },
+            { new: true }
+        );
+
+        if (!loan) {
+            return res.status(404).json({ error: "Loan not found" });
+        }
+
+        return res.json({ loan });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+};

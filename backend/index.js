@@ -1,3 +1,6 @@
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first");
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -21,11 +24,13 @@ app.get("/", (req, res) => {
 // Routes
 const userRoutes = require("./routes/userRoutes");
 const loanRoutes = require("./routes/loanRoutes");
+const callbackRoutes = require("./routes/callbackRoutes");
 const { getLoansByUser } = require("./controllers/loanController");
 
 app.use("/api/user", userRoutes);
 app.get("/api/loan", getLoansByUser);
 app.use("/api/loan", loanRoutes);
+app.use("/api/callback", callbackRoutes);
 
 // Server
 app.listen(5001, () => {

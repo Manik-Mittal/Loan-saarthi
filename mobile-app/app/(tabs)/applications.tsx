@@ -1,7 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
 import { useUser } from "../../src/context/UserContext";
@@ -238,6 +238,7 @@ function ErrorState({ message, onRetry }: any) {
 export default function ApplyTab() {
   const router = useRouter();
   const { user } = useUser();
+  const scrollRef = useRef<ScrollView | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -262,6 +263,7 @@ export default function ApplyTab() {
 
   useFocusEffect(
     useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
       loadApplications();
     }, [loadApplications])
   );
@@ -273,6 +275,7 @@ export default function ApplyTab() {
   return (
     <View style={{ flex: 1, backgroundColor: blueTheme.surface }}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
       >

@@ -1,5 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useRouter } from "expo-router";
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Btn from "../../src/components/Btn";
 import ProgressBar from "../../src/components/ProgressBar";
 
@@ -37,8 +38,18 @@ function Field({ icon, label, value, onChangeText, keyboardType = "default", mul
 }
 
 export default function Step1({ form = {}, setForm = () => {}, next = () => {} }: any) {
+    const router = useRouter();
+
     const handleChange = (field: string, value: string) => {
         setForm({ ...form, [field]: value });
+    };
+
+    const handleBack = () => {
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+        router.replace("/(tabs)/home");
     };
 
     return (
@@ -47,6 +58,11 @@ export default function Step1({ form = {}, setForm = () => {}, next = () => {} }
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
         >
+            <TouchableOpacity activeOpacity={0.86} onPress={handleBack} style={styles.backBtn}>
+                <MaterialIcons name="arrow-back" size={18} color={theme.primary} />
+                <Text style={styles.backText}>Back</Text>
+            </TouchableOpacity>
+
             <View style={styles.header}>
                 <Text style={styles.kicker}>Step 1 of 4</Text>
                 <Text style={styles.title}>Personal Details</Text>
@@ -112,6 +128,22 @@ const styles = StyleSheet.create({
     },
     header: {
         marginBottom: 14,
+    },
+    backBtn: {
+        alignSelf: "flex-start",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        marginBottom: 8,
+        backgroundColor: theme.paleBlue,
+        borderRadius: 9,
+        paddingHorizontal: 10,
+        paddingVertical: 7,
+    },
+    backText: {
+        color: theme.primary,
+        fontSize: 13,
+        fontWeight: "800",
     },
     kicker: {
         color: theme.skyBlue,
