@@ -1,102 +1,104 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
-import { Dimensions, NativeScrollEvent, NativeSyntheticEvent, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, ZoomIn } from "react-native-reanimated";
-import { useUser } from "../../src/context/UserContext"; 
+import { useUser } from "../../src/context/UserContext";
 import { getLoansByUser } from "../../src/services/loanApi";
-
-const { width } = Dimensions.get("window");
-const CAROUSEL_ITEM_WIDTH = width - 32;
-
-const fintechTheme = {
-  primary: "#2F6FED",
-  ink: "#172033",
-  mint: "#18A999",
-  amber: "#D9822B",
-  surface: "#F7FAFD",
-  white: "#FFFFFF",
-  text: "#172033",
-  subText: "#758195",
-  border: "#E8EEF5",
-  lightGray: "#F1F5FA",
-  paleBlue: "#EDF5FF",
-  softBlue: "#F1F7FF",
-  cream: "#FFF8EF",
-};
 
 const ADMIN_PHONE = String(process.env.EXPO_PUBLIC_ADMIN_PHONE || "").replace(/\D/g, "").slice(-10);
 
+const theme = {
+  background: "#EEF3F9",
+  paper: "#FFFFFF",
+  ink: "#10223F",
+  muted: "#60718B",
+  primary: "#195BFF",
+  cyan: "#12A4D9",
+  teal: "#17A589",
+  iconAccent: "#17A589",
+  amber: "#D98A24",
+  border: "#D8E3F2",
+  softBlue: "#EAF2FF",
+};
+
 const AnimatedView = Animated.createAnimatedComponent(View);
 
-function SectionHeader({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
+type LoanApp = {
+  _id: string;
+  course?: string;
+  loanAmount?: string | number;
+  status?: string;
+  createdAt?: string;
+};
+
+function SectionTitle({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-      <Text style={{ color: fintechTheme.text, fontSize: 16, fontWeight: "900" }}>{title}</Text>
+    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 11 }}>
+      <Text style={{ color: theme.ink, fontSize: 16, fontWeight: "900" }}>{title}</Text>
       {!!action && (
-        <TouchableOpacity activeOpacity={0.82} onPress={onAction}>
-          <Text style={{ color: fintechTheme.primary, fontSize: 12, fontWeight: "800" }}>{action}</Text>
+        <TouchableOpacity activeOpacity={0.85} onPress={onAction}>
+          <Text style={{ color: theme.primary, fontSize: 12, fontWeight: "800" }}>{action}</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 }
 
-function StatCard({ label, value, helper, icon }: any) {
+function MetricCard({
+  label,
+  value,
+  helper,
+  icon,
+  tint,
+}: {
+  label: string;
+  value: string;
+  helper: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  tint: string;
+}) {
   return (
     <View
       style={{
         flex: 1,
-        backgroundColor: fintechTheme.white,
-        borderRadius: 10,
-        padding: 14,
+        backgroundColor: theme.paper,
+        borderRadius: 13,
         borderWidth: 1,
-        borderColor: fintechTheme.border,
-        shadowColor: "#8AA4C2",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.08,
-        shadowRadius: 14,
-        elevation: 2,
+        borderColor: theme.border,
+        padding: 13,
       }}
     >
-      <View
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 8,
-          backgroundColor: fintechTheme.softBlue,
-          alignItems: "center",
-          justifyContent: "center",
-          marginBottom: 12,
-        }}
-      >
-        <MaterialIcons name={icon} size={18} color={fintechTheme.primary} />
+      <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: tint, alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+        <MaterialIcons name={icon} size={18} color={theme.paper} />
       </View>
-      <Text style={{ color: fintechTheme.subText, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>{label}</Text>
-      <Text style={{ color: fintechTheme.text, fontSize: 23, fontWeight: "900" }}>{value}</Text>
-      <Text style={{ color: fintechTheme.mint, fontSize: 11, fontWeight: "800", marginTop: 5 }}>{helper}</Text>
+      <Text style={{ color: theme.muted, fontSize: 10, fontWeight: "800" }}>{label}</Text>
+      <Text style={{ color: theme.ink, fontSize: 21, fontWeight: "900", marginTop: 4 }}>{value}</Text>
+      <Text style={{ color: theme.teal, fontSize: 10, fontWeight: "800", marginTop: 4 }}>{helper}</Text>
     </View>
   );
+}
+
+function formatCurrency(value?: string | number) {
+  if (value === null || value === undefined || value === "") return "Not set";
+  const num = Number(String(value).replace(/[^\d.]/g, ""));
+  if (Number.isNaN(num) || num <= 0) return String(value);
+  if (num >= 10000000) return `₹${(num / 10000000).toFixed(1)}Cr`;
+  if (num >= 100000) return `₹${(num / 100000).toFixed(1)}L`;
+  return `₹${num.toLocaleString("en-IN")}`;
 }
 
 export default function Home() {
   const router = useRouter();
   const { user } = useUser();
-  const currentPhone = String(user?.phone || "").replace(/\D/g, "").slice(-10);
-  const isAdmin = Boolean(ADMIN_PHONE) && currentPhone === ADMIN_PHONE;
-  const [activePage, setActivePage] = useState(0);
-  const [loanAmount, setLoanAmount] = useState("");
-  const [duration, setDuration] = useState("");
-  const [applications, setApplications] = useState<any[]>([]);
+  const scrollRef = useRef<ScrollView | null>(null);
+  const [applications, setApplications] = useState<LoanApp[]>([]);
   const [applicationsLoading, setApplicationsLoading] = useState(false);
   const [applicationsError, setApplicationsError] = useState("");
 
-  const loanOptions = [
-    { id: 1, bank: "SBI Education", rate: "8.5%", amount: "₹50L", color: "#5B8DEF" },
-    { id: 2, bank: "HDFC Credila", rate: "9.0%", amount: "₹50L", color: "#7C8CF5" },
-    { id: 3, bank: "ICICI Bank", rate: "8.9%", amount: "₹50L", color: "#37B8A8" },
-  ];
+  const currentPhone = String(user?.phone || "").replace(/\D/g, "").slice(-10);
+  const isAdmin = Boolean(ADMIN_PHONE) && currentPhone === ADMIN_PHONE;
 
   const firstName = useMemo(() => {
     if (user?.name) return String(user.name).split(" ")[0];
@@ -108,11 +110,36 @@ export default function Home() {
     user?.name,
     user?.phone,
     user?.email,
+    user?.education?.college,
     user?.education?.course,
+    user?.financial?.income,
     user?.financial?.loanAmount,
   ];
-  const completion = Math.max(40, Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100));
-  const recentApplications = applications.slice(0, 2);
+  const profileCompletion = Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100);
+
+  const documents = user?.documents || {};
+  const requiredDocs = useMemo(
+    () => [
+      { key: "aadhaar", label: "Aadhaar" },
+      { key: "pan", label: "PAN" },
+      { key: "marksheet12", label: "12th Marksheet" },
+      { key: "admissionLetter", label: "Admission Letter" },
+    ],
+    []
+  );
+  const uploadedDocs = requiredDocs.filter((d) => Boolean(documents?.[d.key])).length;
+  const docsCompletion = Math.round((uploadedDocs / requiredDocs.length) * 100);
+
+  const appStats = useMemo(() => {
+    const total = applications.length;
+    const inReview = applications.filter((a) => !a.status || a.status.toLowerCase() === "in review").length;
+    const approved = applications.filter((a) => a.status?.toLowerCase() === "approved").length;
+    return { total, inReview, approved };
+  }, [applications]);
+  const readinessScore = useMemo(() => {
+    const applicationSignal = appStats.total > 0 ? 100 : 0;
+    return Math.round((profileCompletion * 0.5) + (docsCompletion * 0.3) + (applicationSignal * 0.2));
+  }, [appStats.total, docsCompletion, profileCompletion]);
 
   const loadApplications = useCallback(async () => {
     if (!user?._id) {
@@ -135,369 +162,194 @@ export default function Home() {
 
   useFocusEffect(
     useCallback(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
       loadApplications();
     }, [loadApplications])
   );
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const contentOffsetX = event.nativeEvent.contentOffset.x;
-    setActivePage(Math.round(contentOffsetX / CAROUSEL_ITEM_WIDTH));
-  };
+  const nextActions = useMemo(
+    () => [
+      {
+        title: "Complete profile",
+        done: profileCompletion >= 100,
+        onPress: () => router.push("/(tabs)/profile"),
+      },
+      {
+        title: "Upload required documents",
+        done: uploadedDocs === requiredDocs.length,
+        onPress: () => router.push("/(tabs)/profile"),
+      },
+      {
+        title: "Submit loan application",
+        done: appStats.total > 0,
+        onPress: () => router.push("/apply"),
+      },
+    ],
+    [appStats.total, profileCompletion, requiredDocs.length, router, uploadedDocs]
+  );
 
   return (
-    <View style={{ flex: 1, backgroundColor: fintechTheme.surface }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 112 }} showsVerticalScrollIndicator={false}>
-        <View style={{ backgroundColor: "#EAF4FF", paddingHorizontal: 16, paddingTop: 18, paddingBottom: 74 }}>
-          <AnimatedView entering={FadeInDown.duration(600)} style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: 112 }} showsVerticalScrollIndicator={false}>
+        <View style={{ backgroundColor: "#DCE9FF", paddingTop: 20, paddingBottom: 78, paddingHorizontal: 16, overflow: "hidden" }}>
+          <View style={{ position: "absolute", width: 220, height: 220, borderRadius: 110, backgroundColor: "#C8DCFF", top: -100, right: -40 }} />
+          <View style={{ position: "absolute", width: 180, height: 180, borderRadius: 90, backgroundColor: "#EAF2FF", bottom: -70, left: -50 }} />
+
+          <AnimatedView entering={FadeInDown.duration(530)} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={{ color: fintechTheme.subText, fontSize: 12, fontWeight: "800" }}>GOOD EVENING</Text>
-              <Text numberOfLines={1} style={{ color: fintechTheme.text, fontSize: 25, fontWeight: "900", marginTop: 4 }}>
+              <Text style={{ color: theme.muted, fontSize: 11, fontWeight: "800" }}>WELCOME BACK</Text>
+              <Text style={{ color: theme.ink, fontSize: 30, fontWeight: "900", marginTop: 1 }} numberOfLines={1}>
                 {firstName}
+              </Text>
+              <Text style={{ color: theme.muted, fontSize: 12, fontWeight: "600", marginTop: 4 }}>
+                Track progress, complete tasks, and move toward faster approval.
               </Text>
             </View>
             <TouchableOpacity
               activeOpacity={0.86}
               onPress={() => router.push("/(tabs)/profile")}
               style={{
-                width: 42,
-                height: 42,
+                width: 46,
+                height: 46,
                 borderRadius: 14,
-                backgroundColor: fintechTheme.white,
+                backgroundColor: theme.paper,
+                borderWidth: 1,
+                borderColor: "#C7D9F5",
                 alignItems: "center",
                 justifyContent: "center",
-                borderWidth: 1,
-                borderColor: "#DDEBFA",
               }}
             >
-              <MaterialIcons name="account-circle" size={24} color={fintechTheme.primary} />
+              <MaterialIcons name="account-circle" size={24} color={theme.iconAccent} />
             </TouchableOpacity>
           </AnimatedView>
         </View>
 
-        <AnimatedView entering={ZoomIn.duration(600).delay(100)} style={{ marginTop: -52, paddingHorizontal: 16, marginBottom: 18 }}>
+        <AnimatedView entering={ZoomIn.duration(560).delay(90)} style={{ marginTop: -56, paddingHorizontal: 16, marginBottom: 16 }}>
           <View
             style={{
-              backgroundColor: fintechTheme.white,
-              borderRadius: 10,
+              borderRadius: 18,
+              backgroundColor: "#10264A",
               padding: 18,
-              borderWidth: 1,
-              borderColor: fintechTheme.border,
-              shadowColor: "#8AA4C2",
+              shadowColor: "#0A1C36",
               shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.12,
+              shadowOpacity: 0.2,
               shadowRadius: 20,
-              elevation: 4,
+              elevation: 5,
             }}
           >
-            <Text style={{ color: fintechTheme.subText, fontSize: 12, fontWeight: "800", marginBottom: 8 }}>ESTIMATED ELIGIBILITY</Text>
-            <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 16 }}>
-              <Text style={{ color: fintechTheme.text, fontSize: 38, fontWeight: "900", lineHeight: 42 }}>₹25L</Text>
-              <View style={{ backgroundColor: "#EAFBF7", paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8 }}>
-                <Text style={{ color: fintechTheme.mint, fontSize: 12, fontWeight: "900" }}>Pre-qualified</Text>
-              </View>
-            </View>
-
-            <View style={{ flexDirection: "row", gap: 10, marginBottom: 18 }}>
-              <View style={{ flex: 1, backgroundColor: fintechTheme.softBlue, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: "#DEECFF" }}>
-                <Text style={{ color: fintechTheme.subText, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>RATE FROM</Text>
-                <Text style={{ color: fintechTheme.text, fontSize: 16, fontWeight: "900" }}>8.5% p.a.</Text>
-              </View>
-              <View style={{ flex: 1, backgroundColor: fintechTheme.cream, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: "#F8E5C7" }}>
-                <Text style={{ color: fintechTheme.subText, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>DECISION</Text>
-                <Text style={{ color: fintechTheme.text, fontSize: 16, fontWeight: "900" }}>24 hrs</Text>
-              </View>
-            </View>
-
+            <Text style={{ color: "#9CB7E4", fontSize: 11, fontWeight: "800" }}>APPLICATION READINESS</Text>
+            <Text style={{ color: theme.paper, fontSize: 36, fontWeight: "900", lineHeight: 40, marginTop: 5 }}>
+              {`${readinessScore}%`}
+            </Text>
+            <Text style={{ color: "#D4E0F5", fontSize: 12, fontWeight: "700", marginTop: 6 }}>
+              Computed from profile completion, documents, and application activity.
+            </Text>
             <TouchableOpacity
-              activeOpacity={0.88}
               onPress={() => router.push("/apply")}
-              style={{
-                backgroundColor: fintechTheme.primary,
-                borderRadius: 12,
-                paddingVertical: 14,
-                alignItems: "center",
-                flexDirection: "row",
-                justifyContent: "center",
-                gap: 8,
-              }}
+              activeOpacity={0.9}
+              style={{ backgroundColor: theme.primary, borderRadius: 12, paddingVertical: 13, alignItems: "center", flexDirection: "row", justifyContent: "center", marginTop: 14 }}
             >
-              <MaterialIcons name="arrow-forward" size={18} color={fintechTheme.white} />
-              <Text style={{ color: fintechTheme.white, fontSize: 14, fontWeight: "900" }}>START APPLICATION</Text>
+              <Text style={{ color: theme.paper, fontSize: 13, fontWeight: "900" }}>
+                {appStats.total > 0 ? "IMPROVE READINESS" : "START APPLICATION"}
+              </Text>
+              <MaterialIcons name="arrow-forward" size={18} color={theme.paper} style={{ marginLeft: 8 }} />
             </TouchableOpacity>
           </View>
         </AnimatedView>
 
-        <AnimatedView entering={FadeInDown.duration(600).delay(160)} style={{ paddingHorizontal: 16, marginBottom: 18 }}>
+        <AnimatedView entering={FadeInDown.duration(540).delay(130)} style={{ paddingHorizontal: 16, marginBottom: 16 }}>
           <View style={{ flexDirection: "row", gap: 10 }}>
-            <StatCard label="CREDIT SCORE" value="750" helper="Good range" icon="verified" />
-            <StatCard label="MAX OFFER" value="₹50L" helper="Unlocked" icon="account-balance" />
+            <MetricCard label="PROFILE" value={`${profileCompletion}%`} helper="Completion" icon="person" tint={theme.primary} />
+            <MetricCard label="TASKS" value={`${nextActions.filter((item) => item.done).length}/${nextActions.length}`} helper="Completed" icon="task-alt" tint={theme.teal} />
+            <MetricCard label="APPLICATIONS" value={`${appStats.total}`} helper="Submitted" icon="description" tint={theme.cyan} />
           </View>
         </AnimatedView>
 
-        <AnimatedView entering={FadeInDown.duration(600).delay(220)} style={{ paddingHorizontal: 16, marginBottom: 22 }}>
-          <View
-            style={{
-              backgroundColor: fintechTheme.white,
-              borderRadius: 10,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: fintechTheme.border,
-              shadowColor: "#8AA4C2",
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.07,
-              shadowRadius: 14,
-              elevation: 2,
-            }}
-          >
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <View>
-                <Text style={{ color: fintechTheme.text, fontSize: 15, fontWeight: "900" }}>Profile readiness</Text>
-                <Text style={{ color: fintechTheme.subText, fontSize: 12, fontWeight: "600", marginTop: 3 }}>Complete details to improve offers</Text>
+        <AnimatedView entering={FadeInDown.duration(540).delay(180)} style={{ paddingHorizontal: 16, marginBottom: 18 }}>
+          <SectionTitle title="Application Pipeline" action="View all" onAction={() => router.push("/(tabs)/applications")} />
+          <View style={{ backgroundColor: theme.paper, borderWidth: 1, borderColor: theme.border, borderRadius: 14, padding: 14 }}>
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 10 }}>
+              <View style={miniStat}>
+                <Text style={miniStatValue}>{appStats.total}</Text>
+                <Text style={miniStatLabel}>Total</Text>
               </View>
-              <Text style={{ color: completion >= 80 ? fintechTheme.mint : fintechTheme.amber, fontSize: 15, fontWeight: "900" }}>{completion}%</Text>
+              <View style={miniStat}>
+                <Text style={miniStatValue}>{appStats.inReview}</Text>
+                <Text style={miniStatLabel}>In Review</Text>
+              </View>
+              <View style={miniStat}>
+                <Text style={miniStatValue}>{appStats.approved}</Text>
+                <Text style={miniStatLabel}>Approved</Text>
+              </View>
             </View>
-            <View style={{ height: 8, borderRadius: 4, backgroundColor: fintechTheme.lightGray, overflow: "hidden" }}>
-              <View
-                style={{
-                  width: `${completion}%`,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: completion >= 80 ? fintechTheme.mint : fintechTheme.primary,
-                }}
-              />
-            </View>
-          </View>
-        </AnimatedView>
 
-        <AnimatedView entering={FadeInDown.duration(600).delay(280)} style={{ marginBottom: 24 }}>
-          <View style={{ paddingHorizontal: 16 }}>
-            <SectionHeader title="Recommended Offers" action="Compare" />
-          </View>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            scrollEventThrottle={16}
-            onScroll={handleScroll}
-            snapToInterval={CAROUSEL_ITEM_WIDTH}
-            decelerationRate="fast"
-          >
-            {loanOptions.map((loan) => (
-              <View key={loan.id} style={{ width: CAROUSEL_ITEM_WIDTH, paddingHorizontal: 16 }}>
-                <View
-                  style={{
-                    backgroundColor: loan.color,
-                    borderRadius: 12,
-                    padding: 18,
-                    minHeight: 182,
-                    shadowColor: loan.color,
-                    shadowOffset: { width: 0, height: 8 },
-                    shadowOpacity: 0.16,
-                    shadowRadius: 18,
-                    elevation: 3,
-                  }}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-                    <View>
-                      <Text style={{ color: "rgba(255,255,255,0.72)", fontSize: 11, fontWeight: "800" }}>LENDER</Text>
-                      <Text style={{ color: fintechTheme.white, fontSize: 22, fontWeight: "900", marginTop: 5 }}>{loan.bank}</Text>
-                    </View>
-                    <View style={{ width: 44, height: 44, borderRadius: 13, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" }}>
-                      <MaterialIcons name="account-balance" size={23} color={fintechTheme.white} />
-                    </View>
-                  </View>
-
-                  <View style={{ flexDirection: "row", gap: 10, marginBottom: 18 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: "rgba(255,255,255,0.68)", fontSize: 11, fontWeight: "800", marginBottom: 5 }}>INTEREST</Text>
-                      <Text style={{ color: fintechTheme.white, fontSize: 20, fontWeight: "900" }}>{loan.rate}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: "rgba(255,255,255,0.68)", fontSize: 11, fontWeight: "800", marginBottom: 5 }}>LIMIT</Text>
-                      <Text style={{ color: fintechTheme.white, fontSize: 20, fontWeight: "900" }}>{loan.amount}</Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity activeOpacity={0.88} style={{ backgroundColor: "rgba(255,255,255,0.94)", borderRadius: 12, paddingVertical: 12, alignItems: "center" }}>
-                    <Text style={{ color: loan.color, fontSize: 13, fontWeight: "900" }}>VIEW DETAILS</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-
-          <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginTop: 12 }}>
-            {loanOptions.map((_, i) => (
-              <View
-                key={i}
-                style={{
-                  width: i === activePage ? 24 : 7,
-                  height: 7,
-                  borderRadius: 4,
-                  backgroundColor: i === activePage ? fintechTheme.primary : "#D0D5DD",
-                }}
-              />
-            ))}
-          </View>
-        </AnimatedView>
-
-        <AnimatedView entering={FadeInDown.duration(600).delay(340)} style={{ paddingHorizontal: 16, marginBottom: 24 }}>
-          <SectionHeader title="Applications" action={applications.length > 0 ? "View all" : undefined} onAction={() => router.push("/(tabs)/applications")} />
-          <View style={{ gap: 10 }}>
-            {applicationsLoading && (
-              <View style={applicationStateCard}>
-                <Text style={{ color: fintechTheme.subText, fontSize: 13, fontWeight: "800" }}>Loading your applications...</Text>
-              </View>
-            )}
-
+            {applicationsLoading && <Text style={{ color: theme.muted, fontSize: 12, fontWeight: "700" }}>Loading applications...</Text>}
             {!applicationsLoading && !!applicationsError && (
-              <TouchableOpacity activeOpacity={0.86} onPress={loadApplications} style={applicationStateCard}>
-                <MaterialIcons name="refresh" size={22} color={fintechTheme.primary} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: fintechTheme.text, fontSize: 14, fontWeight: "900" }}>Could not load applications</Text>
-                  <Text style={{ color: fintechTheme.subText, fontSize: 12, fontWeight: "600", marginTop: 3 }}>{applicationsError}</Text>
-                </View>
+              <TouchableOpacity onPress={loadApplications} activeOpacity={0.86}>
+                <Text style={{ color: theme.amber, fontSize: 12, fontWeight: "700" }}>{applicationsError}</Text>
+                <Text style={{ color: theme.primary, fontSize: 12, fontWeight: "800", marginTop: 3 }}>Tap to retry</Text>
               </TouchableOpacity>
             )}
 
-            {!applicationsLoading && !applicationsError && applications.length === 0 && (
-              <View style={emptyApplicationCard}>
-                <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: fintechTheme.softBlue, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
-                  <MaterialIcons name="assignment" size={22} color={fintechTheme.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: fintechTheme.text, fontSize: 14, fontWeight: "900" }}>No applications yet</Text>
-                  <Text style={{ color: fintechTheme.subText, fontSize: 12, fontWeight: "600", lineHeight: 17, marginTop: 4 }}>
-                    Start your first loan request and track it here.
-                  </Text>
-                </View>
-                <TouchableOpacity activeOpacity={0.86} onPress={() => router.push("/apply")} style={{ backgroundColor: fintechTheme.primary, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }}>
-                  <Text style={{ color: fintechTheme.white, fontSize: 11, fontWeight: "900" }}>APPLY</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {!applicationsLoading && !applicationsError && recentApplications.map((app) => {
-              const status = app.status || "In Review";
-              const statusColor = status.toLowerCase() === "approved" ? fintechTheme.mint : fintechTheme.amber;
-
-              return (
-                <View
-                  key={app._id}
-                  style={{
-                    backgroundColor: fintechTheme.white,
-                    borderRadius: 12,
-                    padding: 15,
-                    borderWidth: 1,
-                    borderColor: fintechTheme.border,
-                    shadowColor: "#8AA4C2",
-                    shadowOffset: { width: 0, height: 5 },
-                    shadowOpacity: 0.06,
-                    shadowRadius: 12,
-                    elevation: 2,
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: fintechTheme.softBlue, alignItems: "center", justifyContent: "center", marginRight: 12 }}>
-                    <MaterialIcons name="description" size={20} color={fintechTheme.primary} />
+            {!applicationsLoading &&
+              !applicationsError &&
+              applications.slice(0, 2).map((app) => {
+                const status = app.status || "In Review";
+                const statusColor = status.toLowerCase() === "approved" ? theme.teal : theme.amber;
+                return (
+                  <View key={app._id} style={recentRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: theme.ink, fontSize: 13, fontWeight: "800" }}>{app.course || "Education Loan"}</Text>
+                      <Text style={{ color: theme.muted, fontSize: 12, fontWeight: "600", marginTop: 2 }}>{formatCurrency(app.loanAmount)}</Text>
+                    </View>
+                    <View style={{ borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: `${statusColor}18` }}>
+                      <Text style={{ color: statusColor, fontSize: 11, fontWeight: "900" }}>{status}</Text>
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: fintechTheme.text, fontSize: 14, fontWeight: "900" }}>{app.course || "Education Loan"}</Text>
-                    <Text style={{ color: fintechTheme.subText, fontSize: 12, fontWeight: "600", marginTop: 4 }}>₹{app.loanAmount || "N/A"}</Text>
-                  </View>
-                  <View style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8, backgroundColor: `${statusColor}14` }}>
-                    <Text style={{ color: statusColor, fontSize: 11, fontWeight: "900" }}>{status}</Text>
-                  </View>
-                </View>
-              );
-            })}
+                );
+              })}
           </View>
         </AnimatedView>
 
-        <AnimatedView entering={FadeInDown.duration(600).delay(400)} style={{ paddingHorizontal: 16, marginBottom: 24 }}>
-          <SectionHeader title="EMI Calculator" />
-          <View
-            style={{
-              backgroundColor: fintechTheme.white,
-              borderRadius: 12,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: fintechTheme.border,
-              shadowColor: "#8AA4C2",
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.07,
-              shadowRadius: 14,
-              elevation: 2,
-            }}
-          >
-            <TextInput
-              placeholder="Loan amount"
-              keyboardType="numeric"
-              value={loanAmount}
-              onChangeText={setLoanAmount}
-              style={input}
-              placeholderTextColor={fintechTheme.subText}
-            />
-            <TextInput
-              placeholder="Duration in years"
-              keyboardType="numeric"
-              value={duration}
-              onChangeText={setDuration}
-              style={input}
-              placeholderTextColor={fintechTheme.subText}
-            />
-            <TouchableOpacity
-              activeOpacity={0.88}
-              style={{
-                backgroundColor: fintechTheme.primary,
-                borderRadius: 12,
-                paddingVertical: 13,
-                alignItems: "center",
-                flexDirection: "row",
-                justifyContent: "center",
-                gap: 8,
-              }}
-            >
-              <MaterialIcons name="calculate" size={18} color={fintechTheme.white} />
-              <Text style={{ color: fintechTheme.white, fontSize: 13, fontWeight: "900" }}>CALCULATE EMI</Text>
-            </TouchableOpacity>
+        <AnimatedView entering={FadeInDown.duration(540).delay(230)} style={{ paddingHorizontal: 16, marginBottom: 18 }}>
+          <SectionTitle title="Next Best Actions" />
+          <View style={{ backgroundColor: theme.paper, borderWidth: 1, borderColor: theme.border, borderRadius: 14, padding: 14 }}>
+            {nextActions.map((item) => (
+              <TouchableOpacity key={item.title} onPress={item.onPress} activeOpacity={0.86} style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8 }}>
+                <MaterialIcons name={item.done ? "check-circle" : "radio-button-unchecked"} size={19} color={item.done ? theme.teal : theme.muted} />
+                <Text style={{ marginLeft: 8, color: theme.ink, fontSize: 13, fontWeight: "700", flex: 1 }}>{item.title}</Text>
+                <MaterialIcons name="chevron-right" size={18} color={theme.muted} />
+              </TouchableOpacity>
+            ))}
           </View>
         </AnimatedView>
 
-        <AnimatedView entering={FadeInDown.duration(600).delay(460)} style={{ paddingHorizontal: 16 }}>
-          <SectionHeader title="Support" />
-          <View style={{ flexDirection: "row", gap: 10 }}>
+        <AnimatedView entering={FadeInDown.duration(540).delay(280)} style={{ paddingHorizontal: 16 }}>
+          <SectionTitle title="Help & Guidance" />
+          <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
             {[
-              { title: "Chat", detail: "Instant help", icon: "chat", onPress: () => {} },
-              { title: "Advisor", detail: "Call back", icon: "support-agent", onPress: () => router.push("/request-callback") },
-              { title: "FAQ", detail: "Answers", icon: "help-outline", onPress: () => router.push("/faq") },
-              ...(isAdmin ? [{ title: "Admin", detail: "Portal", icon: "admin-panel-settings", onPress: () => router.push("/admin-callbacks") }] : []),
+              { title: "Request Callback", sub: "Talk to advisor", icon: "support-agent", bg: theme.softBlue, onPress: () => router.push("/request-callback") },
+              { title: "Education Loan FAQ", sub: "Important answers", icon: "help-outline", bg: "#E8F8F5", onPress: () => router.push("/faq") },
+              ...(isAdmin ? [{ title: "Admin Portal", sub: "Manage requests", icon: "admin-panel-settings", bg: "#FFF3E8", onPress: () => router.push("/admin-callbacks") }] : []),
             ].map((item) => (
               <TouchableOpacity
                 key={item.title}
                 activeOpacity={0.86}
                 onPress={item.onPress}
                 style={{
-                  flex: 1,
-                  backgroundColor: fintechTheme.white,
+                  width: isAdmin ? "48.3%" : "48.5%",
+                  backgroundColor: theme.paper,
                   borderRadius: 12,
                   padding: 13,
                   borderWidth: 1,
-                  borderColor: fintechTheme.border,
-                  alignItems: "center",
-                  shadowColor: "#8AA4C2",
-                  shadowOffset: { width: 0, height: 5 },
-                  shadowOpacity: 0.06,
-                  shadowRadius: 12,
-                  elevation: 2,
+                  borderColor: theme.border,
                 }}
               >
-                <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: fintechTheme.softBlue, alignItems: "center", justifyContent: "center", marginBottom: 9 }}>
-                  <MaterialIcons name={item.icon as any} size={18} color={fintechTheme.primary} />
+                <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: item.bg, alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+                  <MaterialIcons name={item.icon as keyof typeof MaterialIcons.glyphMap} size={18} color={theme.iconAccent} />
                 </View>
-                <Text style={{ color: fintechTheme.text, fontSize: 12, fontWeight: "900" }}>{item.title}</Text>
-                <Text style={{ color: fintechTheme.subText, fontSize: 10, fontWeight: "700", marginTop: 3 }}>{item.detail}</Text>
+                <Text style={{ color: theme.ink, fontSize: 12, fontWeight: "900" }}>{item.title}</Text>
+                <Text style={{ color: theme.muted, fontSize: 10, fontWeight: "700", marginTop: 3 }}>{item.sub}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -507,41 +359,33 @@ export default function Home() {
   );
 }
 
-const input = {
-  backgroundColor: "#FBFCFE",
+const miniStat = {
+  flex: 1,
+  backgroundColor: "#F7FAFF",
   borderWidth: 1,
-  borderColor: fintechTheme.border,
-  paddingHorizontal: 14,
-  paddingVertical: 13,
-  borderRadius: 12,
-  marginBottom: 12,
-  fontSize: 15,
-  color: fintechTheme.text,
-  fontWeight: "600" as const,
+  borderColor: "#E1EAF7",
+  borderRadius: 10,
+  paddingVertical: 9,
+  alignItems: "center" as const,
 };
 
-const applicationStateCard = {
-  backgroundColor: fintechTheme.white,
-  borderRadius: 12,
-  padding: 15,
-  borderWidth: 1,
-  borderColor: fintechTheme.border,
-  flexDirection: "row" as const,
-  alignItems: "center" as const,
-  gap: 10,
+const miniStatValue = {
+  color: theme.ink,
+  fontSize: 18,
+  fontWeight: "900" as const,
 };
 
-const emptyApplicationCard = {
-  backgroundColor: fintechTheme.white,
-  borderRadius: 12,
-  padding: 15,
-  borderWidth: 1,
-  borderColor: fintechTheme.border,
+const miniStatLabel = {
+  color: theme.muted,
+  fontSize: 10,
+  fontWeight: "700" as const,
+  marginTop: 2,
+};
+
+const recentRow = {
   flexDirection: "row" as const,
   alignItems: "center" as const,
-  shadowColor: "#8AA4C2",
-  shadowOffset: { width: 0, height: 5 },
-  shadowOpacity: 0.06,
-  shadowRadius: 12,
-  elevation: 2,
+  paddingVertical: 10,
+  borderTopWidth: 1,
+  borderTopColor: "#EEF2F9",
 };

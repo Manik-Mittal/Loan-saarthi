@@ -8,20 +8,21 @@ import { useUser } from "../../src/context/UserContext";
 import { getProfile, updateProfile } from "../../src/services/userApi";
 
 const fintechTheme = {
-  primary: "#2F6FED",
-  skyBlue: "#2F6FED",
-  ink: "#172033",
-  mint: "#18A999",
-  amber: "#D9822B",
-  surface: "#F7FAFD",
+  primary: "#195BFF",
+  skyBlue: "#195BFF",
+  ink: "#10223F",
+  mint: "#17A589",
+  iconAccent: "#17A589",
+  amber: "#D98A24",
+  surface: "#EEF3F9",
   white: "#FFFFFF",
-  text: "#172033",
-  subText: "#758195",
-  border: "#E8EEF5",
-  lightGray: "#F1F5FA",
-  paleBlue: "#EDF5FF",
-  softBlue: "#F1F7FF",
-  cream: "#FFF8EF",
+  text: "#10223F",
+  subText: "#60718B",
+  border: "#D8E3F2",
+  lightGray: "#F7FAFF",
+  paleBlue: "#EAF2FF",
+  softBlue: "#EAF2FF",
+  cream: "#E8F8F5",
 };
 
 const AnimatedView = Animated.createAnimatedComponent(View);
@@ -52,6 +53,7 @@ const emptyProfile = {
   education: {
     class10: "",
     class12: "",
+    school: "",
     college: "",
     course: "",
     year: "",
@@ -70,30 +72,71 @@ function parseLegacyAddress(address: string, pincode = "") {
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
-  const country = parts.length >= 2 ? parts[parts.length - 1] : emptyProfile.address.country;
-  const state = parts.length >= 2 ? parts[parts.length - 2] : "";
-  const city = parts.length >= 3 ? parts[parts.length - 3] : "";
-  const streetParts = parts.slice(0, Math.max(parts.length - 3, 1));
+  let resolvedPincode = String(pincode || "").trim();
+  let resolvedCountry = emptyProfile.address.country;
+  let resolvedState = "";
+  let resolvedCity = "";
+  let cursor = parts.length - 1;
+
+  // If last token looks like a pincode, consume it.
+  if (cursor >= 0 && /^\d{5,6}$/.test(parts[cursor])) {
+    resolvedPincode = parts[cursor];
+    cursor -= 1;
+  }
+
+  // Country is optional in legacy format. Only consume when there are enough
+  // tokens remaining (street, city, state, country) to avoid shifting values.
+  if (cursor >= 0 && cursor + 1 >= 4) {
+    resolvedCountry = parts[cursor];
+    cursor -= 1;
+  }
+
+  if (cursor >= 0) {
+    resolvedState = parts[cursor];
+    cursor -= 1;
+  }
+  if (cursor >= 0) {
+    resolvedCity = parts[cursor];
+    cursor -= 1;
+  }
+
+  const streetParts = parts.slice(0, cursor + 1);
 
   return {
     ...emptyProfile.address,
     line1: streetParts[0] || address,
     line2: streetParts.slice(1).join(", "),
-    city,
-    state,
-    pincode,
-    country: country || emptyProfile.address.country,
+    city: resolvedCity,
+    state: resolvedState,
+    pincode: resolvedPincode,
+    country: resolvedCountry || emptyProfile.address.country,
   };
 }
 
 function mergeProfile(user: any) {
   const address = typeof user?.address === "string"
     ? parseLegacyAddress(user.address, user?.pincode || "")
-    : {
-      ...emptyProfile.address,
-      ...(user?.address || {}),
-      pincode: user?.address?.pincode || user?.pincode || "",
-    };
+    : (() => {
+      const rawAddress = {
+        ...emptyProfile.address,
+        ...(user?.address || {}),
+        pincode: user?.address?.pincode || user?.pincode || "",
+      };
+
+      const parsedFromLine1 = (!rawAddress.city || !rawAddress.state) && String(rawAddress.line1 || "").includes(",")
+        ? parseLegacyAddress(String(rawAddress.line1), rawAddress.pincode)
+        : null;
+
+      return {
+        ...rawAddress,
+        line1: rawAddress.line1 || parsedFromLine1?.line1 || "",
+        line2: rawAddress.line2 || parsedFromLine1?.line2 || "",
+        city: rawAddress.city || parsedFromLine1?.city || user?.city || "",
+        state: rawAddress.state || parsedFromLine1?.state || user?.state || "",
+        pincode: rawAddress.pincode || parsedFromLine1?.pincode || user?.pincode || "",
+        country: rawAddress.country || parsedFromLine1?.country || "India",
+      };
+    })();
 
   return {
     ...emptyProfile,
@@ -132,6 +175,7 @@ function normalizeProfile(profile: any) {
     education: {
       class10: String(merged.education.class10 || ""),
       class12: String(merged.education.class12 || ""),
+      school: String(merged.education.school || ""),
       college: String(merged.education.college || ""),
       course: String(merged.education.course || ""),
       year: String(merged.education.year || ""),
@@ -280,7 +324,7 @@ function SelectModal({ visible, title, options, value, onSelect, onClose }: any)
                 <Text style={{ color: selected ? fintechTheme.primary : fintechTheme.text, fontSize: 15, fontWeight: "700" }}>
                   {option}
                 </Text>
-                {selected && <MaterialIcons name="check" size={20} color={fintechTheme.primary} />}
+                {selected && <MaterialIcons name="check" size={20} color={fintechTheme.iconAccent} />}
               </TouchableOpacity>
             );
           })}
@@ -350,7 +394,7 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
 
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <TouchableOpacity onPress={() => moveMonth(-1)} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}>
-              <MaterialIcons name="chevron-left" size={26} color={fintechTheme.primary} />
+              <MaterialIcons name="chevron-left" size={26} color={fintechTheme.iconAccent} />
             </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: 8 }}>
               <TouchableOpacity
@@ -373,7 +417,7 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
               </TouchableOpacity>
             </View>
             <TouchableOpacity onPress={() => moveMonth(1)} style={{ width: 40, height: 40, alignItems: "center", justifyContent: "center" }}>
-              <MaterialIcons name="chevron-right" size={26} color={fintechTheme.primary} />
+              <MaterialIcons name="chevron-right" size={26} color={fintechTheme.iconAccent} />
             </TouchableOpacity>
           </View>
 
@@ -471,7 +515,7 @@ function CalendarModal({ visible, value, onSelect, onClose }: any) {
                       <Text style={{ color: selected ? fintechTheme.primary : fintechTheme.text, fontSize: 15, fontWeight: "700" }}>
                         {optionLabel}
                       </Text>
-                      {selected && <MaterialIcons name="check" size={20} color={fintechTheme.primary} />}
+                      {selected && <MaterialIcons name="check" size={20} color={fintechTheme.iconAccent} />}
                     </TouchableOpacity>
                   );
                 })}
@@ -490,15 +534,15 @@ function SectionCard({ title, icon, children, delay }: any) {
       entering={FadeInDown.duration(600).delay(delay)}
       style={{
         backgroundColor: fintechTheme.white,
-        borderRadius: 10,
+        borderRadius: 14,
         marginBottom: 16,
         overflow: "hidden",
         borderWidth: 1,
         borderColor: fintechTheme.border,
-        shadowColor: "#8AA4C2",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.07,
-        shadowRadius: 14,
+        shadowColor: "#B8C9E5",
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
         elevation: 2,
       }}
     >
@@ -516,13 +560,13 @@ function SectionCard({ title, icon, children, delay }: any) {
           style={{
             width: 32,
             height: 32,
-            borderRadius: 8,
+            borderRadius: 10,
             backgroundColor: fintechTheme.paleBlue,
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <MaterialIcons name={icon} size={18} color={fintechTheme.primary} />
+          <MaterialIcons name={icon} size={18} color={fintechTheme.iconAccent} />
         </View>
         <Text style={{ fontSize: 15, fontWeight: "800", color: fintechTheme.text, marginLeft: 10 }}>
           {title}
@@ -671,7 +715,9 @@ export default function Profile() {
         contentContainerStyle={{ paddingBottom: 96 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ backgroundColor: "#EAF4FF", paddingTop: 18, paddingHorizontal: 16, paddingBottom: 72 }}>
+        <View style={{ backgroundColor: "#DCE9FF", paddingTop: 20, paddingHorizontal: 16, paddingBottom: 78, overflow: "hidden" }}>
+          <View style={{ position: "absolute", width: 220, height: 220, borderRadius: 110, backgroundColor: "#C8DCFF", top: -100, right: -40 }} />
+          <View style={{ position: "absolute", width: 180, height: 180, borderRadius: 90, backgroundColor: "#EAF2FF", bottom: -70, left: -50 }} />
           <AnimatedView
             entering={FadeInDown.duration(600)}
             style={{
@@ -682,9 +728,9 @@ export default function Profile() {
           >
             <View>
               <Text style={{ color: fintechTheme.subText, fontSize: 12, fontWeight: "800", letterSpacing: 0 }}>
-                ACCOUNT
+                ACCOUNT OVERVIEW
               </Text>
-              <Text style={{ fontSize: 26, fontWeight: "900", color: fintechTheme.text, marginTop: 3 }}>
+              <Text style={{ fontSize: 30, fontWeight: "900", color: fintechTheme.text, marginTop: 2 }}>
                 Profile
               </Text>
             </View>
@@ -699,27 +745,25 @@ export default function Profile() {
                 alignItems: "center",
                 justifyContent: "center",
                 borderWidth: 1,
-                borderColor: "#DDEBFA",
+                borderColor: "#C7D9F5",
               }}
             >
-              <MaterialIcons name="logout" size={20} color={fintechTheme.primary} />
+              <MaterialIcons name="logout" size={20} color={fintechTheme.iconAccent} />
             </TouchableOpacity>
           </AnimatedView>
         </View>
 
-        <AnimatedView entering={ZoomIn.duration(600).delay(100)} style={{ paddingHorizontal: 16, marginTop: -52, marginBottom: 18 }}>
+        <AnimatedView entering={ZoomIn.duration(600).delay(100)} style={{ paddingHorizontal: 16, marginTop: -56, marginBottom: 18 }}>
           <View
             style={{
-              backgroundColor: fintechTheme.white,
-              borderRadius: 10,
+              backgroundColor: "#10264A",
+              borderRadius: 18,
               padding: 18,
-              borderWidth: 1,
-              borderColor: fintechTheme.border,
-              shadowColor: "#8AA4C2",
+              shadowColor: "#0A1C36",
               shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.12,
+              shadowOpacity: 0.2,
               shadowRadius: 20,
-              elevation: 4,
+              elevation: 5,
             }}
           >
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 18 }}>
@@ -737,10 +781,10 @@ export default function Profile() {
                 <Text style={{ fontSize: 25, color: fintechTheme.white, fontWeight: "900" }}>{initials}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: "900", color: fintechTheme.text, marginBottom: 3 }}>
+                <Text style={{ fontSize: 18, fontWeight: "900", color: fintechTheme.white, marginBottom: 3 }}>
                   {data.name || "Complete your profile"}
                 </Text>
-                <Text style={{ fontSize: 13, color: fintechTheme.subText, fontWeight: "600" }}>
+                <Text style={{ fontSize: 13, color: "#C8DAF8", fontWeight: "700" }}>
                   {data.phone || "Phone not added"}
                 </Text>
               </View>
@@ -750,24 +794,24 @@ export default function Profile() {
                 style={{
                   width: 42,
                   height: 42,
-                  borderRadius: 10,
-                  backgroundColor: fintechTheme.lightGray,
+                  borderRadius: 12,
+                  backgroundColor: "#15325C",
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <MaterialIcons name="refresh" size={20} color={fintechTheme.primary} />
+                <MaterialIcons name="refresh" size={20} color="#D6E3FA" />
               </TouchableOpacity>
             </View>
 
             <View style={{ marginBottom: 16 }}>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <Text style={{ color: fintechTheme.text, fontSize: 13, fontWeight: "800" }}>Loan readiness</Text>
-                <Text style={{ color: completion >= 80 ? fintechTheme.mint : fintechTheme.amber, fontSize: 13, fontWeight: "900" }}>
+                <Text style={{ color: "#B5C8E8", fontSize: 12, fontWeight: "800" }}>PROFILE READINESS</Text>
+                <Text style={{ color: completion >= 80 ? "#7DE0C7" : "#F2C486", fontSize: 13, fontWeight: "900" }}>
                   {completion}%
                 </Text>
               </View>
-              <View style={{ height: 8, borderRadius: 4, backgroundColor: fintechTheme.lightGray, overflow: "hidden" }}>
+              <View style={{ height: 8, borderRadius: 4, backgroundColor: "#1C3A67", overflow: "hidden" }}>
                 <View
                   style={{
                     width: `${completion}%`,
@@ -780,15 +824,15 @@ export default function Profile() {
             </View>
 
             <View style={{ flexDirection: "row", gap: 10 }}>
-              <View style={{ flex: 1, backgroundColor: fintechTheme.softBlue, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: "#DEECFF" }}>
-                <Text style={{ color: fintechTheme.subText, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>COURSE</Text>
-                <Text numberOfLines={1} style={{ color: fintechTheme.text, fontSize: 14, fontWeight: "900" }}>
+              <View style={{ flex: 1, backgroundColor: "#17345F", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#224876" }}>
+                <Text style={{ color: "#9FB8E0", fontSize: 11, fontWeight: "800", marginBottom: 5 }}>COURSE</Text>
+                <Text numberOfLines={1} style={{ color: fintechTheme.white, fontSize: 14, fontWeight: "900" }}>
                   {data.education.course || "Pending"}
                 </Text>
               </View>
-              <View style={{ flex: 1, backgroundColor: fintechTheme.cream, borderRadius: 8, padding: 12, borderWidth: 1, borderColor: "#F8E5C7" }}>
-                <Text style={{ color: fintechTheme.subText, fontSize: 11, fontWeight: "800", marginBottom: 5 }}>LOAN NEED</Text>
-                <Text numberOfLines={1} style={{ color: fintechTheme.text, fontSize: 14, fontWeight: "900" }}>
+              <View style={{ flex: 1, backgroundColor: "#17345F", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#224876" }}>
+                <Text style={{ color: "#9FB8E0", fontSize: 11, fontWeight: "800", marginBottom: 5 }}>LOAN NEED</Text>
+                <Text numberOfLines={1} style={{ color: fintechTheme.white, fontSize: 14, fontWeight: "900" }}>
                   {data.financial.loanAmount ? `₹${data.financial.loanAmount}` : "Pending"}
                 </Text>
               </View>
@@ -837,6 +881,7 @@ export default function Profile() {
           <SectionCard title="Education Details" icon="school" delay={300}>
             <Row label="10th Marks" value={String(data.education.class10 || "")} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("education", "class10", val)} />
             <Row label="12th Marks" value={String(data.education.class12 || "")} keyboardType="numeric" onChangeText={(val: string) => updateNestedField("education", "class12", val)} />
+            <Row label="School Name" value={data.education.school} onChangeText={(val: string) => updateNestedField("education", "school", val)} />
             <SelectRow
               label="Course"
               value={data.education.course}
@@ -975,3 +1020,4 @@ export default function Profile() {
     </View>
   );
 }
+

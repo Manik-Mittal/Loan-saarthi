@@ -1,6 +1,15 @@
 const User = require("../models/User");
 
 const normalizePhone = (phone) => String(phone || "").replace(/\D/g, "").slice(-10);
+const normalizeText = (value) => {
+    if (value === undefined || value === null) return undefined;
+    return String(value).trim();
+};
+const normalizeNumber = (value) => {
+    if (value === undefined || value === null || String(value).trim() === "") return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+};
 
 const profileNeedsOnboarding = (user) => {
     const addressIsString = typeof user?.address === "string";
@@ -44,27 +53,61 @@ const normalizeAddress = (address, pincode) => {
             .filter(Boolean);
 
         return removeUndefined({
-            line1: parts[0] || address,
-            line2: parts.length > 4 ? parts.slice(1, -3).join(", ") : undefined,
-            city: parts.length >= 3 ? parts[parts.length - 3] : undefined,
-            state: parts.length >= 2 ? parts[parts.length - 2] : undefined,
-            pincode,
-            country: parts.length >= 2 ? parts[parts.length - 1] : "India",
+            line1: normalizeText(parts[0] || address),
+            line2: normalizeText(parts.length > 4 ? parts.slice(1, -3).join(", ") : undefined),
+            city: normalizeText(parts.length >= 3 ? parts[parts.length - 3] : undefined),
+            state: normalizeText(parts.length >= 2 ? parts[parts.length - 2] : undefined),
+            pincode: normalizeText(pincode),
+            country: normalizeText(parts.length >= 2 ? parts[parts.length - 1] : "India"),
         });
     }
 
     if (typeof address === "object" && !Array.isArray(address)) {
         return removeUndefined({
-            line1: address.line1,
-            line2: address.line2,
-            city: address.city,
-            state: address.state,
-            pincode: address.pincode || pincode,
-            country: address.country || "India",
+            line1: normalizeText(address.line1),
+            line2: normalizeText(address.line2),
+            city: normalizeText(address.city),
+            state: normalizeText(address.state),
+            pincode: normalizeText(address.pincode || pincode),
+            country: normalizeText(address.country || "India"),
         });
     }
 
     return undefined;
+};
+
+const normalizeAddressForResponse = (userLike) => {
+    const normalized = normalizeAddress(userLike?.address, userLike?.pincode) || {};
+    const hasCityState = String(normalized.city || "").trim() && String(normalized.state || "").trim();
+
+    if (!hasCityState && String(normalized.line1 || "").includes(",")) {
+        const parsedFromLine1 = normalizeAddress(normalized.line1, normalized.pincode || userLike?.pincode) || {};
+        return removeUndefined({
+            ...normalized,
+            line1: normalized.line1 || parsedFromLine1.line1,
+            line2: normalized.line2 || parsedFromLine1.line2,
+            city: normalized.city || parsedFromLine1.city,
+            state: normalized.state || parsedFromLine1.state,
+            pincode: normalized.pincode || parsedFromLine1.pincode || userLike?.pincode,
+            country: normalized.country || parsedFromLine1.country || "India",
+        });
+    }
+
+    return removeUndefined({
+        ...normalized,
+        pincode: normalized.pincode || userLike?.pincode,
+        country: normalized.country || "India",
+    });
+};
+
+const buildUserResponse = (user, extras = {}) => {
+    const userObject = typeof user?.toObject === "function" ? user.toObject() : user;
+
+    return {
+        ...userObject,
+        address: normalizeAddressForResponse(userObject),
+        ...extras,
+    };
 };
 
 // Create or login user (basic)
@@ -84,11 +127,12 @@ exports.loginUser = async (req, res) => {
             user = await User.create({ phone });
         }
 
-        res.json({
-            ...user.toObject(),
-            isNewUser,
-            requiresOnboarding: profileNeedsOnboarding(user)
-        });
+        res.json(
+            buildUserResponse(user, {
+                isNewUser,
+                requiresOnboarding: profileNeedsOnboarding(user)
+            })
+        );
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -105,7 +149,7 @@ exports.getProfile = async (req, res) => {
             return res.status(404).json({ error: "User not found" });
         }
 
-        res.json(user);
+        res.json(buildUserResponse(user));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -115,30 +159,36 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const { id } = req.params;
+        const normalizedPhone = req.body.phone !== undefined ? normalizePhone(req.body.phone) : undefined;
+
+        if (normalizedPhone !== undefined && !/^\d{10}$/.test(normalizedPhone)) {
+            return res.status(400).json({ error: "Enter a valid 10 digit mobile number" });
+        }
+
         const allowedFields = removeUndefined({
-            name: req.body.name,
-            dob: req.body.dob,
-            phone: req.body.phone,
-            email: req.body.email,
+            name: normalizeText(req.body.name),
+            dob: normalizeText(req.body.dob),
+            phone: normalizedPhone,
+            email: normalizeText(req.body.email),
             address: normalizeAddress(req.body.address, req.body.pincode),
-            pincode: req.body.pincode,
-            pan: req.body.pan,
-            gender: req.body.gender,
-            marital: req.body.marital,
+            pincode: normalizeText(req.body.pincode),
+            pan: normalizeText(req.body.pan),
+            gender: normalizeText(req.body.gender),
+            marital: normalizeText(req.body.marital),
             education: {
-                class10: req.body.education?.class10,
-                class12: req.body.education?.class12,
-                school: req.body.education?.school,
-                college: req.body.education?.college,
-                course: req.body.education?.course,
-                year: req.body.education?.year,
-                marks: req.body.education?.marks,
+                class10: normalizeNumber(req.body.education?.class10),
+                class12: normalizeNumber(req.body.education?.class12),
+                school: normalizeText(req.body.education?.school),
+                college: normalizeText(req.body.education?.college),
+                course: normalizeText(req.body.education?.course),
+                year: normalizeText(req.body.education?.year),
+                marks: normalizeText(req.body.education?.marks),
             },
             financial: {
-                income: req.body.financial?.income,
-                loanAmount: req.body.financial?.loanAmount,
-                duration: req.body.financial?.duration,
-                bank: req.body.financial?.bank,
+                income: normalizeNumber(req.body.financial?.income),
+                loanAmount: normalizeText(req.body.financial?.loanAmount),
+                duration: normalizeText(req.body.financial?.duration),
+                bank: normalizeText(req.body.financial?.bank),
             },
             documents: req.body.documents,
         });
@@ -153,7 +203,7 @@ exports.updateProfile = async (req, res) => {
             return res.status(404).json({ error: "User not found" });
         }
 
-        res.json(user);
+        res.json(buildUserResponse(user));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

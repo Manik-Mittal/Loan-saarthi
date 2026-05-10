@@ -8,13 +8,14 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useUser } from '../../src/context/UserContext';
 
 const blueTheme = {
-  primary: "#2F6FED",
+  primary: "#195BFF",
+  iconAccent: "#197BFF",
   skyBlue: "#6EA4FF",
-  surface: "#F7FAFD",
+  surface: "#EEF3F9",
   white: "#FFFFFF",
-  text: "#172033",
-  subText: "#758195",
-  border: "#E8EEF5",
+  text: "#10223F",
+  subText: "#60718B",
+  border: "#D8E3F2",
   inactive: "#AAB6C7",
 };
 
@@ -68,13 +69,13 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
               activeOpacity={0.8}
             >
               <View style={styles.iconContainer}>
-                <MaterialIcons name={route.icon} size={26} color={isFocused ? blueTheme.primary : blueTheme.inactive} />
+                <MaterialIcons name={route.icon} size={26} color={isFocused ? blueTheme.iconAccent : blueTheme.inactive} />
               </View>
               <Text
                 style={[
                   styles.tabLabel,
                   {
-                    color: isFocused ? blueTheme.text : blueTheme.subText,
+                    color: isFocused ? blueTheme.iconAccent : blueTheme.subText,
                     fontWeight: isFocused ? '800' : '600',
                   },
                 ]}
@@ -107,7 +108,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: blueTheme.primary,
+        tabBarActiveTintColor: blueTheme.iconAccent,
         tabBarInactiveTintColor: blueTheme.inactive,
         headerShown: false,
         tabBarButton: HapticTab,
