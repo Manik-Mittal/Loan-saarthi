@@ -1,9 +1,79 @@
 const Loan = require("../models/Loan");
+const { DOCUMENT_RULES, createPresignedDownload, createPresignedUpload } = require("../services/r2Storage");
+
+const requiredDocumentKeys = Object.keys(DOCUMENT_RULES);
+const APPLICATION_PREFIX = "LS";
+
+const generateApplicationNumber = () => {
+    const now = new Date();
+    const datePart = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0"),
+    ].join("");
+    const randomPart = Math.floor(100000 + Math.random() * 900000);
+
+    return `${APPLICATION_PREFIX}-${datePart}-${randomPart}`;
+};
+
+const reserveUniqueApplicationNumber = async () => {
+    for (let attempts = 0; attempts < 5; attempts += 1) {
+        const applicationNumber = generateApplicationNumber();
+        const existingLoan = await Loan.exists({ applicationNumber });
+
+        if (!existingLoan) {
+            return applicationNumber;
+        }
+    }
+
+    throw new Error("Unable to generate application number");
+};
+
+const validateUploadedDocuments = (documents = {}) => {
+    if (!documents || typeof documents !== "object") {
+        return "Missing required field: documents";
+    }
+
+    const missingDocuments = requiredDocumentKeys.filter((key) => !documents[key]?.key);
+
+    if (missingDocuments.length > 0) {
+        return `Missing uploaded documents: ${missingDocuments.join(", ")}`;
+    }
+
+    return "";
+};
+
+exports.reserveApplicationNumber = async (_req, res) => {
+    try {
+        const applicationNumber = await reserveUniqueApplicationNumber();
+        return res.json({ applicationNumber });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+exports.requestDocumentUpload = async (req, res) => {
+    try {
+        const uploadData = await createPresignedUpload({
+            userId: req.body.userId,
+            applicationNumber: req.body.applicationNumber,
+            documentType: req.body.documentType,
+            fileName: req.body.fileName,
+            mimeType: req.body.mimeType,
+            size: req.body.size,
+        });
+
+        return res.json(uploadData);
+    } catch (err) {
+        return res.status(err.statusCode || 500).json({ error: err.message });
+    }
+};
 
 exports.createLoan = async (req, res) => {
     try {
         const requiredFields = [
             "userId",
+            "applicationNumber",
             "name",
             "phone",
             "email",
@@ -26,8 +96,15 @@ exports.createLoan = async (req, res) => {
             });
         }
 
+        const documentError = validateUploadedDocuments(req.body.documents);
+
+        if (documentError) {
+            return res.status(400).json({ error: documentError });
+        }
+
         const loan = new Loan({
             userId: req.body.userId,
+            applicationNumber: req.body.applicationNumber,
             name: req.body.name,
             phone: req.body.phone,
             email: req.body.email,
@@ -72,6 +149,41 @@ exports.getAllLoans = async (_req, res) => {
     try {
         const loans = await Loan.find({}).sort({ createdAt: -1 });
         return res.json({ loans });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+exports.getAdminLoanDocumentUrl = async (req, res) => {
+    try {
+        const { id, documentKey } = req.params;
+        const loan = await Loan.findById(id);
+
+        if (!loan) {
+            return res.status(404).json({ error: "Loan not found" });
+        }
+
+        const document = loan.documents?.[documentKey];
+
+        if (!document?.key) {
+            return res.status(404).json({ error: "Document not found" });
+        }
+
+        const signedUrl = await createPresignedDownload({
+            key: document.key,
+            originalName: document.originalName || document.name,
+            mimeType: document.mimeType,
+        });
+
+        return res.json({
+            ...signedUrl,
+            document: {
+                documentType: documentKey,
+                originalName: document.originalName || document.name,
+                mimeType: document.mimeType,
+                size: document.size,
+            },
+        });
     } catch (err) {
         return res.status(500).json({ error: err.message });
     }

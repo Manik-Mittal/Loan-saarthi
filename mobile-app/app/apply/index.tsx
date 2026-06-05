@@ -38,6 +38,7 @@ function createInitialForm(user: any) {
         income: user?.financial?.income ? String(user.financial.income) : "",
         loanAmount: user?.financial?.loanAmount ? String(user.financial.loanAmount) : "",
         duration: user?.financial?.duration ? String(user.financial.duration) : "",
+        applicationNumber: "",
         documents: user?.documents || {},
     };
 }

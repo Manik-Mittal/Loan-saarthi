@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const loanSchema = new mongoose.Schema({
     userId: String,
+    applicationNumber: {
+        type: String,
+        unique: true,
+        index: true,
+        sparse: true,
+    },
 
     name: String,
     phone: String,

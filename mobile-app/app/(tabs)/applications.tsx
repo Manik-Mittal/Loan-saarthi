@@ -45,6 +45,10 @@ function formatDate(date?: string) {
   });
 }
 
+function formatApplicationNumber(value?: string) {
+  return String(value || "").trim() || "Application number pending";
+}
+
 function SummaryTile({ label, value, icon, color }: any) {
   return (
     <View
@@ -80,12 +84,14 @@ function SummaryTile({ label, value, icon, color }: any) {
   );
 }
 
-function ApplicationCard({ item }: any) {
+function ApplicationCard({ item, onPress }: any) {
   const status = item.status || "In Review";
   const statusColor = getStatusColor(status);
 
   return (
-    <View
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onPress}
       style={{
         backgroundColor: appTheme.white,
         borderRadius: 14,
@@ -97,6 +103,9 @@ function ApplicationCard({ item }: any) {
     >
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
         <View style={{ flex: 1 }}>
+          <Text style={{ color: appTheme.iconAccent, fontSize: 11, fontWeight: "900", letterSpacing: 0.4 }}>
+            {formatApplicationNumber(item.applicationNumber)}
+          </Text>
           <Text style={{ color: appTheme.text, fontSize: 16, fontWeight: "900" }}>
             {item.course || "Education Loan"}
           </Text>
@@ -128,8 +137,14 @@ function ApplicationCard({ item }: any) {
         <Text style={{ color: appTheme.iconAccent, fontSize: 12, fontWeight: "800", marginTop: 6 }}>
           Duration: {item.duration || "N/A"} months
         </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
+          <Text style={{ color: appTheme.primary, fontSize: 12, fontWeight: "900" }}>
+            View submitted details
+          </Text>
+          <MaterialIcons name="chevron-right" size={18} color={appTheme.primary} />
+        </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -270,6 +285,7 @@ export default function ApplyTab() {
   );
 
   const startApplication = () => router.push("/apply");
+  const openApplication = (id: string) => router.push({ pathname: "/application/[id]", params: { id } });
   const approvedCount = applications.filter((item) => String(item.status || "").toLowerCase() === "approved").length;
   const pendingCount = applications.length - approvedCount;
 
@@ -277,7 +293,7 @@ export default function ApplyTab() {
     <View style={{ flex: 1, backgroundColor: appTheme.surface }}>
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 124 }}
         showsVerticalScrollIndicator={false}
       >
         <View style={{ backgroundColor: "#DCE9FF", paddingTop: 20, paddingBottom: 78, paddingHorizontal: 16, overflow: "hidden" }}>
@@ -358,7 +374,7 @@ export default function ApplyTab() {
           )}
 
           {!loading && applications.map((item) => (
-            <ApplicationCard key={item._id} item={item} />
+            <ApplicationCard key={item._id} item={item} onPress={() => openApplication(item._id)} />
           ))}
         </AnimatedView>
       </ScrollView>

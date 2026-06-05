@@ -13,12 +13,12 @@ app.use(express.json());
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("MongoDB Connected ✅"))
+    .then(() => console.log("MongoDB connected"))
     .catch(err => console.log(err));
 
 // Test route
 app.get("/", (req, res) => {
-    res.send("API Running 🚀");
+    res.send("API running");
 });
 
 // Routes
@@ -33,6 +33,17 @@ app.use("/api/loan", loanRoutes);
 app.use("/api/callback", callbackRoutes);
 
 // Server
-app.listen(5001, () => {
-    console.log("Server running on port 5001");
+const PORT = process.env.PORT || 5001;
+const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
+});
+
+server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+        console.error(`Port ${PORT} is already in use. Stop the running backend or set a different PORT.`);
+        process.exit(1);
+    }
+
+    console.error(err);
+    process.exit(1);
 });

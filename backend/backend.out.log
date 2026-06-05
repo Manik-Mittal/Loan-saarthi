@@ -2,5 +2,5 @@
 > loansaarthi-backend@1.0.0 start
 > node index.js
 
-Server running on port 5001
-MongoDB Connected ✅
+Server running on http://0.0.0.0:5001
+MongoDB connected

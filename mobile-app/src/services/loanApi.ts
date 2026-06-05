@@ -4,6 +4,21 @@ export const createLoan = (data: any) => {
     return API.post("/loan/createLoan", data);
 };
 
+export const reserveLoanApplicationNumber = () => {
+    return API.post("/loan/application-number");
+};
+
+export const requestLoanDocumentUpload = (data: {
+    userId: string;
+    applicationNumber: string;
+    documentType: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+}) => {
+    return API.post("/loan/document-upload-url", data);
+};
+
 export const getLoansByUser = (userId: string) => {
     return API.get("/loan", { params: { userId } });
 };
@@ -30,4 +45,16 @@ export const updateLoanStatusForAdmin = (
             },
         }
     );
+};
+
+export const getAdminLoanDocumentUrl = (
+    adminPhone: string,
+    id: string,
+    documentKey: string
+) => {
+    return API.get(`/loan/admin/${id}/document/${documentKey}`, {
+        headers: {
+            "x-admin-phone": adminPhone,
+        },
+    });
 };
