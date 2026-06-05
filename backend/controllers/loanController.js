@@ -1,5 +1,6 @@
 const Loan = require("../models/Loan");
 const { DOCUMENT_RULES, createPresignedDownload, createPresignedUpload } = require("../services/r2Storage");
+const { sendNotificationToUser } = require("../services/pushNotifications");
 
 const requiredDocumentKeys = Object.keys(DOCUMENT_RULES);
 const APPLICATION_PREFIX = "LS";
@@ -207,6 +208,22 @@ exports.updateLoanStatus = async (req, res) => {
 
         if (!loan) {
             return res.status(404).json({ error: "Loan not found" });
+        }
+
+        try {
+            await sendNotificationToUser({
+                userId: loan.userId,
+                title: "Loan application update",
+                body: `Your application ${loan.applicationNumber || ""} is now ${status}.`.trim(),
+                data: {
+                    type: "loan-status-update",
+                    loanId: String(loan._id),
+                    applicationNumber: loan.applicationNumber,
+                    status,
+                },
+            });
+        } catch (notificationErr) {
+            console.log("PUSH NOTIFICATION ERROR:", notificationErr.message);
         }
 
         return res.json({ loan });

@@ -1,4 +1,6 @@
 const User = require("../models/User");
+const { isExpoPushToken, sendNotificationToUser } = require("../services/pushNotifications");
+const { getOtpProvider, sendOtp, verifyOtp } = require("../services/otpService");
 
 const normalizePhone = (phone) => String(phone || "").replace(/\D/g, "").slice(-10);
 const normalizeText = (value) => {
@@ -110,13 +112,44 @@ const buildUserResponse = (user, extras = {}) => {
     };
 };
 
-// Create or login user (basic)
-exports.loginUser = async (req, res) => {
+exports.sendLoginOtp = async (req, res) => {
     try {
         const phone = normalizePhone(req.body.phone);
 
         if (!/^\d{10}$/.test(phone)) {
             return res.status(400).json({ error: "Enter a valid 10 digit mobile number" });
+        }
+
+        const result = await sendOtp({ phone });
+
+        return res.json({
+            message: "OTP sent",
+            provider: getOtpProvider(),
+            ...(result?.code ? { devOtp: result.code } : {}),
+        });
+    } catch (err) {
+        return res.status(err.statusCode || 500).json({ error: err.message });
+    }
+};
+
+// Create or login user after OTP verification
+exports.verifyLoginOtp = async (req, res) => {
+    try {
+        const phone = normalizePhone(req.body.phone);
+        const code = String(req.body.code || "").trim();
+
+        if (!/^\d{10}$/.test(phone)) {
+            return res.status(400).json({ error: "Enter a valid 10 digit mobile number" });
+        }
+
+        if (!/^\d{4,8}$/.test(code)) {
+            return res.status(400).json({ error: "Enter a valid OTP" });
+        }
+
+        const isVerified = await verifyOtp({ phone, code });
+
+        if (!isVerified) {
+            return res.status(400).json({ error: "Invalid or expired OTP" });
         }
 
         const existingUser = await User.findOne({ phone });
@@ -205,6 +238,70 @@ exports.updateProfile = async (req, res) => {
 
         res.json(buildUserResponse(user));
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(err.statusCode || 500).json({ error: err.message });
+    }
+};
+
+exports.registerPushToken = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const token = String(req.body.token || "").trim();
+        const platform = normalizeText(req.body.platform);
+
+        if (!isExpoPushToken(token)) {
+            return res.status(400).json({ error: "Invalid Expo push token" });
+        }
+
+        const user = await User.findById(id);
+
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        const existingTokens = Array.isArray(user.expoPushTokens) ? user.expoPushTokens : [];
+        const nextTokens = existingTokens.filter((entry) => String(entry?.token || "").trim() !== token);
+
+        nextTokens.push({
+            token,
+            platform,
+            updatedAt: new Date(),
+        });
+
+        user.expoPushTokens = nextTokens;
+        await user.save();
+
+        return res.json(buildUserResponse(user));
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+};
+
+exports.sendAdminNotification = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const title = normalizeText(req.body.title);
+        const body = normalizeText(req.body.body);
+
+        if (!title) {
+            return res.status(400).json({ error: "Missing required field: title" });
+        }
+
+        if (!body) {
+            return res.status(400).json({ error: "Missing required field: body" });
+        }
+
+        const result = await sendNotificationToUser({
+            userId: id,
+            title,
+            body,
+            data: req.body.data,
+        });
+
+        return res.json({
+            message: "Notification sent",
+            ...result,
+        });
+    } catch (err) {
+        return res.status(err.statusCode || 500).json({ error: err.message });
     }
 };

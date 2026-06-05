@@ -39,7 +39,18 @@ const userSchema = new mongoose.Schema({
         bank: String
     },
 
-    documents: mongoose.Schema.Types.Mixed
+    documents: mongoose.Schema.Types.Mixed,
+    expoPushTokens: [{
+        token: {
+            type: String,
+            required: true,
+        },
+        platform: String,
+        updatedAt: {
+            type: Date,
+            default: Date.now,
+        },
+    }]
 
 }, { timestamps: true });
 

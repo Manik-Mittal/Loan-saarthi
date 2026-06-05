@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import Animated, { Easing, FadeInDown, FadeInRight, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 import { useUser } from "../src/context/UserContext";
-import { loginUser } from "../src/services/userApi";
+import { sendLoginOtp, verifyLoginOtp } from "../src/services/userApi";
 import { needsOnboarding } from "../src/utils/profile";
 
 const theme = {
@@ -48,6 +48,8 @@ function Metric({ label, value, icon, tint }: { label: string; value: string; ic
 
 export default function Login() {
   const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { setUser } = useUser();
@@ -68,9 +70,9 @@ export default function Login() {
     transform: [{ translateY: bannerY.value }],
   }));
 
-  const handleLogin = async () => {
-    const normalizedPhone = phone.replace(/\D/g, "").slice(-10);
+  const normalizedPhone = phone.replace(/\D/g, "").slice(-10);
 
+  const handleSendOtp = async () => {
     if (!/^\d{10}$/.test(normalizedPhone)) {
       alert("Enter a valid 10 digit mobile number");
       return;
@@ -78,14 +80,45 @@ export default function Login() {
 
     try {
       setLoading(true);
-      const res = await loginUser(normalizedPhone);
+      const res = await sendLoginOtp(normalizedPhone);
+      setOtpSent(true);
+      if (res.data?.devOtp) {
+        alert(`Dev OTP: ${res.data.devOtp}`);
+      } else {
+        alert("OTP sent to your mobile number");
+      }
+    } catch (err: any) {
+      alert(err?.response?.data?.error || "Unable to send OTP");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const normalizedOtp = otp.replace(/\D/g, "").trim();
+
+    const normalizedPhone = phone.replace(/\D/g, "").slice(-10);
+
+    if (!/^\d{10}$/.test(normalizedPhone)) {
+      alert("Enter a valid 10 digit mobile number");
+      return;
+    }
+
+    if (!/^\d{4,8}$/.test(normalizedOtp)) {
+      alert("Enter a valid OTP");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await verifyLoginOtp(normalizedPhone, normalizedOtp);
       const shouldShowOnboarding = res.data?.isNewUser === true || (res.data?.isNewUser !== false && needsOnboarding(res.data));
       const userData = {
         ...res.data,
         isNewUser: res.data?.isNewUser ?? shouldShowOnboarding,
       };
       await setUser(userData);
-      const isAdmin = Boolean(ADMIN_PHONE) && normalizedPhone === ADMIN_PHONE;
+    const isAdmin = Boolean(ADMIN_PHONE) && normalizedPhone === ADMIN_PHONE;
       setTimeout(() => {
         if (isAdmin) {
           router.replace("/admin-callbacks");
@@ -95,7 +128,7 @@ export default function Login() {
       }, 100);
     } catch (err) {
       console.log(err);
-      alert("Login failed");
+      alert((err as any)?.response?.data?.error || "OTP verification failed");
     } finally {
       setLoading(false);
     }
@@ -180,7 +213,7 @@ export default function Login() {
           <AnimatedView entering={FadeInDown.duration(620).delay(130)} style={{ backgroundColor: theme.card, borderRadius: 18, borderWidth: 1, borderColor: theme.border, padding: 16 }}>
             <Text style={{ color: theme.ink, fontSize: 18, fontWeight: "900", marginBottom: 4 }}>Login With Mobile</Text>
             <Text style={{ color: theme.sub, fontSize: 13, fontWeight: "600", marginBottom: 13 }}>
-              New user accounts are created automatically after verification.
+              New user accounts are created automatically after OTP verification.
             </Text>
 
             <Text style={{ color: theme.ink, fontSize: 12, fontWeight: "800", marginBottom: 8 }}>PHONE NUMBER</Text>
@@ -199,10 +232,41 @@ export default function Login() {
               />
             </View>
 
-            <TouchableOpacity activeOpacity={0.9} onPress={handleLogin} disabled={loading} style={{ backgroundColor: theme.primary, borderRadius: 14, paddingVertical: 15, alignItems: "center", justifyContent: "center", flexDirection: "row", opacity: loading ? 0.72 : 1 }}>
-              <Text style={{ color: theme.white, fontSize: 15, fontWeight: "900" }}>{loading ? "PLEASE WAIT..." : "CONTINUE"}</Text>
+            {otpSent && (
+              <>
+                <Text style={{ color: theme.ink, fontSize: 12, fontWeight: "800", marginBottom: 8 }}>OTP</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: theme.border, borderRadius: 14, backgroundColor: "#FCFEFF", paddingHorizontal: 14, marginBottom: 14 }}>
+                  <MaterialIcons name="lock-outline" size={18} color={theme.primary} />
+                  <TextInput
+                    value={otp}
+                    onChangeText={setOtp}
+                    placeholder="Enter OTP"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    placeholderTextColor={theme.sub}
+                    style={{ flex: 1, color: theme.ink, fontSize: 16, fontWeight: "700", paddingVertical: 14, marginLeft: 10 }}
+                  />
+                </View>
+              </>
+            )}
+
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={otpSent ? handleVerifyOtp : handleSendOtp}
+              disabled={loading}
+              style={{ backgroundColor: theme.primary, borderRadius: 14, paddingVertical: 15, alignItems: "center", justifyContent: "center", flexDirection: "row", opacity: loading ? 0.72 : 1 }}
+            >
+              <Text style={{ color: theme.white, fontSize: 15, fontWeight: "900" }}>
+                {loading ? "PLEASE WAIT..." : otpSent ? "VERIFY OTP" : "SEND OTP"}
+              </Text>
               {!loading && <MaterialIcons name="arrow-forward" size={18} color={theme.white} style={{ marginLeft: 8 }} />}
             </TouchableOpacity>
+
+            {otpSent && (
+              <TouchableOpacity activeOpacity={0.84} onPress={handleSendOtp} disabled={loading} style={{ marginTop: 10, alignItems: "center" }}>
+                <Text style={{ color: theme.primary, fontSize: 12, fontWeight: "800" }}>Resend OTP</Text>
+              </TouchableOpacity>
+            )}
 
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 12 }}>
               <MaterialIcons name="verified-user" size={16} color={theme.accent} />

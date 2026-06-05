@@ -2,10 +2,11 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Linking, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Linking, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useUser } from "../src/context/UserContext";
 import { getCallbackRequests, updateCallbackRequestStatus } from "../src/services/callbackApi";
 import { getAdminLoanDocumentUrl, getAllLoansForAdmin, updateLoanStatusForAdmin } from "../src/services/loanApi";
+import { sendAdminNotificationToUser } from "../src/services/userApi";
 
 const theme = {
   bg: "#F4F7FB",
@@ -40,6 +41,7 @@ type CallbackItem = {
 
 type LoanItem = {
   _id: string;
+  userId?: string;
   applicationNumber?: string;
   name?: string;
   phone?: string;
@@ -65,6 +67,10 @@ export default function AdminPortalScreen() {
   const [loans, setLoans] = useState<LoanItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [notificationLoan, setNotificationLoan] = useState<LoanItem | null>(null);
+  const [notificationTitle, setNotificationTitle] = useState("");
+  const [notificationBody, setNotificationBody] = useState("");
+  const [sendingNotification, setSendingNotification] = useState(false);
 
   const userPhone = String(user?.phone || "").replace(/\D/g, "").slice(-10);
   const isAdmin = Boolean(ADMIN_PHONE) && userPhone === ADMIN_PHONE;
@@ -138,6 +144,55 @@ export default function AdminPortalScreen() {
 
   const openLoanDetails = (loanId: string) => {
     router.push({ pathname: "/admin-application/[id]", params: { id: loanId } });
+  };
+
+  const openNotificationComposer = (loan: LoanItem) => {
+    setNotificationLoan(loan);
+    setNotificationTitle(`Update for ${loan.applicationNumber || "your application"}`);
+    setNotificationBody(`Hello ${loan.name || "there"}, your application is being reviewed.`);
+  };
+
+  const closeNotificationComposer = () => {
+    if (sendingNotification) return;
+    setNotificationLoan(null);
+    setNotificationTitle("");
+    setNotificationBody("");
+  };
+
+  const sendNotification = async () => {
+    if (!notificationLoan?.userId) {
+      alert("This application is missing a user ID.");
+      return;
+    }
+
+    if (!String(notificationTitle || "").trim()) {
+      alert("Please enter a notification title.");
+      return;
+    }
+
+    if (!String(notificationBody || "").trim()) {
+      alert("Please enter a notification message.");
+      return;
+    }
+
+    try {
+      setSendingNotification(true);
+      await sendAdminNotificationToUser(userPhone, notificationLoan.userId, {
+        title: notificationTitle.trim(),
+        body: notificationBody.trim(),
+        data: {
+          type: "admin-message",
+          loanId: notificationLoan._id,
+          applicationNumber: notificationLoan.applicationNumber,
+        },
+      });
+      closeNotificationComposer();
+      alert("Notification sent.");
+    } catch (err: any) {
+      alert(err?.response?.data?.error || err?.message || "Unable to send notification");
+    } finally {
+      setSendingNotification(false);
+    }
   };
 
   const summary = useMemo(
@@ -274,7 +329,7 @@ export default function AdminPortalScreen() {
           const documentEntries = Object.entries(item.documents || {}).filter(([, document]) => Boolean(document?.key));
 
           return (
-            <TouchableOpacity key={item._id} onPress={() => openLoanDetails(item._id)} activeOpacity={0.9} style={itemCard}>
+            <View key={item._id} style={itemCard}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <View style={{ flex: 1, paddingRight: 10 }}>
                   <Text style={{ color: theme.primary, fontSize: 11, fontWeight: "900" }}>
@@ -289,20 +344,17 @@ export default function AdminPortalScreen() {
               <Text style={metaText}>Phone: {item.phone || "N/A"}</Text>
               <Text style={metaText}>Course: {item.course || "N/A"}</Text>
               <Text style={metaText}>Loan Amount: Rs. {item.loanAmount || "N/A"}</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
+              <TouchableOpacity onPress={() => openLoanDetails(item._id)} activeOpacity={0.86} style={detailsBtn}>
                 <Text style={{ color: theme.primary, fontSize: 12, fontWeight: "900" }}>View application details</Text>
                 <MaterialIcons name="chevron-right" size={18} color={theme.primary} />
-              </View>
+              </TouchableOpacity>
 
               {documentEntries.length > 0 && (
                 <View style={{ flexDirection: "row", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                   {documentEntries.map(([documentKey, document]) => (
                     <TouchableOpacity
                       key={documentKey}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        openLoanDocument(item._id, documentKey);
-                      }}
+                      onPress={() => openLoanDocument(item._id, documentKey)}
                       activeOpacity={0.86}
                       style={documentBtn}
                     >
@@ -314,13 +366,21 @@ export default function AdminPortalScreen() {
               )}
 
               <View style={{ flexDirection: "row", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                <TouchableOpacity
+                  onPress={() => openNotificationComposer(item)}
+                  activeOpacity={0.86}
+                  style={notifyBtn}
+                >
+                  <MaterialIcons name="notifications-active" size={16} color={theme.primary} />
+                  <Text style={notifyText}>Send Notification</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                 {(["In Review", "Approved", "Rejected", "Disbursed"] as const).map((nextStatus) => (
                   <TouchableOpacity
                     key={nextStatus}
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      updateLoanStatus(item._id, nextStatus);
-                    }}
+                    onPress={() => updateLoanStatus(item._id, nextStatus)}
                     activeOpacity={0.86}
                     style={statusBtn(status === nextStatus)}
                   >
@@ -328,10 +388,57 @@ export default function AdminPortalScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-            </TouchableOpacity>
+            </View>
           );
         })}
       </ScrollView>
+
+      <Modal visible={!!notificationLoan} transparent animationType="fade" onRequestClose={closeNotificationComposer}>
+        <View style={modalBackdrop}>
+          <View style={modalCard}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={{ color: theme.ink, fontSize: 17, fontWeight: "900" }}>Send Notification</Text>
+                <Text style={{ color: theme.body, fontSize: 12, fontWeight: "600", marginTop: 4 }}>
+                  {notificationLoan?.applicationNumber || notificationLoan?.name || "Application"}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={closeNotificationComposer} activeOpacity={0.86} style={headerIconButton}>
+                <MaterialIcons name="close" size={18} color={theme.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={inputLabel}>Title</Text>
+            <TextInput
+              value={notificationTitle}
+              onChangeText={setNotificationTitle}
+              placeholder="Enter notification title"
+              placeholderTextColor="#94A3B8"
+              style={textInput}
+            />
+
+            <Text style={inputLabel}>Message</Text>
+            <TextInput
+              value={notificationBody}
+              onChangeText={setNotificationBody}
+              placeholder="Enter notification message"
+              placeholderTextColor="#94A3B8"
+              multiline
+              textAlignVertical="top"
+              style={[textInput, { minHeight: 110, paddingTop: 12 }]}
+            />
+
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 14 }}>
+              <TouchableOpacity onPress={closeNotificationComposer} activeOpacity={0.86} style={secondaryActionBtn}>
+                <Text style={secondaryActionText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={sendNotification} activeOpacity={0.86} style={primaryActionBtn}>
+                <Text style={primaryActionText}>{sendingNotification ? "Sending..." : "Send"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -427,6 +534,31 @@ const documentBtn = {
   gap: 5,
 };
 
+const detailsBtn = {
+  flexDirection: "row" as const,
+  alignItems: "center" as const,
+  alignSelf: "flex-start" as const,
+  marginTop: 10,
+};
+
+const notifyBtn = {
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: "#BFD4F5",
+  backgroundColor: "#F4F8FF",
+  paddingHorizontal: 10,
+  paddingVertical: 7,
+  flexDirection: "row" as const,
+  alignItems: "center" as const,
+  gap: 6,
+};
+
+const notifyText = {
+  color: theme.primary,
+  fontSize: 12,
+  fontWeight: "900" as const,
+};
+
 const documentText = {
   color: theme.primary,
   fontSize: 11,
@@ -438,3 +570,70 @@ const statusText = (active: boolean) => ({
   fontSize: 11,
   fontWeight: "800" as const,
 });
+
+const modalBackdrop = {
+  flex: 1,
+  backgroundColor: "rgba(15,33,63,0.35)",
+  justifyContent: "center" as const,
+  padding: 18,
+};
+
+const modalCard = {
+  backgroundColor: theme.white,
+  borderRadius: 16,
+  borderWidth: 1,
+  borderColor: theme.border,
+  padding: 16,
+};
+
+const inputLabel = {
+  color: theme.ink,
+  fontSize: 12,
+  fontWeight: "800" as const,
+  marginBottom: 6,
+  marginTop: 4,
+};
+
+const textInput = {
+  borderWidth: 1,
+  borderColor: theme.border,
+  borderRadius: 10,
+  backgroundColor: "#F8FBFF",
+  paddingHorizontal: 12,
+  paddingVertical: 10,
+  color: theme.ink,
+  fontSize: 14,
+  fontWeight: "600" as const,
+};
+
+const primaryActionBtn = {
+  flex: 1,
+  borderRadius: 10,
+  backgroundColor: theme.primary,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  minHeight: 42,
+};
+
+const primaryActionText = {
+  color: theme.white,
+  fontSize: 13,
+  fontWeight: "900" as const,
+};
+
+const secondaryActionBtn = {
+  flex: 1,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: theme.border,
+  backgroundColor: theme.white,
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+  minHeight: 42,
+};
+
+const secondaryActionText = {
+  color: theme.body,
+  fontSize: 13,
+  fontWeight: "800" as const,
+};
