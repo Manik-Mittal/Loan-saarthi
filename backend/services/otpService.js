@@ -127,7 +127,7 @@ const sendViaDevOtp = async ({ phone }) => {
 
     return {
         provider: "dev",
-        code: process.env.NODE_ENV === "production" ? undefined : code,
+        code: process.env.OTP_HIDE_DEV_CODE === "true" ? undefined : code,
     };
 };
 

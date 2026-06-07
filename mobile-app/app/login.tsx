@@ -88,7 +88,7 @@ export default function Login() {
         alert("OTP sent to your mobile number");
       }
     } catch (err: any) {
-      alert(err?.response?.data?.error || "Unable to send OTP");
+      alert(err?.response?.data?.error || err?.message || "Unable to send OTP");
     } finally {
       setLoading(false);
     }
